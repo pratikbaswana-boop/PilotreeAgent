@@ -14,7 +14,7 @@ export const auth = authority
     })
   : null;
 export async function accessToken(refresh = false): Promise<string | null> {
-  if (localDevelopmentAuth)
+  if (localDevelopmentAuth || demoAuth)
     return sessionStorage.getItem("pilotree.local.token");
   if (!auth) return null;
   let user = await auth.getUser();
@@ -30,7 +30,7 @@ export function login() {
     });
 }
 export async function logout() {
-  if (localDevelopmentAuth) {
+  if (localDevelopmentAuth || demoAuth) {
     sessionStorage.removeItem("pilotree.local.token");
     location.assign("/login");
     return;
