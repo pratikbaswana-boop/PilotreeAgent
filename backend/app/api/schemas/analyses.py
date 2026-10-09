@@ -66,8 +66,9 @@ class AnalysisPatchRequest(BaseModel):
     summary: str | None = None
     category: str | None = None
     priority: str | None = None
-    reason: str | None = None
+    priority_reason: str | None = None
     suggested_action: str | None = None
     missing_info: list[str] | None = None
     risk_flags: list[str] | None = None
     needs_human_call: bool | None = None
+    recommended_tools: list[dict[str, Any]] | None = None

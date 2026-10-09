@@ -104,9 +104,7 @@ class CircuitBreaker:
                 )
         elif snapshot.state == HALF_OPEN:
             # A failure in half_open reopens the breaker
-            await self._transition(
-                db, key, OPEN, failure_count=snapshot.failure_count + 1
-            )
+            await self._transition(db, key, OPEN, failure_count=snapshot.failure_count + 1)
 
         self._invalidate_cache(key)
 
@@ -123,9 +121,7 @@ class CircuitBreaker:
                 return snapshot
 
         # Read from DB
-        result = await db.execute(
-            select(BreakerState).where(BreakerState.breaker_key == key)
-        )
+        result = await db.execute(select(BreakerState).where(BreakerState.breaker_key == key))
         row = result.scalar_one_or_none()
 
         if row is None:

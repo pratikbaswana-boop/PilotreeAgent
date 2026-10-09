@@ -60,7 +60,7 @@ def _extract_bearer(request: Request) -> str:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing or malformed Authorization header.",
         )
-    return auth_header[len("Bearer "):]
+    return auth_header[len("Bearer ") :]
 
 
 async def get_current_user(
@@ -97,9 +97,7 @@ async def get_current_user(
     email = str(claims.get("email", ""))
     display_name = str(claims.get("name", claims.get("preferred_username", email)))
 
-    result = await db.execute(
-        select(User).where(User.oidc_subject == oidc_subject)
-    )
+    result = await db.execute(select(User).where(User.oidc_subject == oidc_subject))
     user = result.scalar_one_or_none()
 
     if user is None:

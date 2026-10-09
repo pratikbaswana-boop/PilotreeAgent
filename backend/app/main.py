@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     if settings.local_development_auth:
         from app.security.local_auth import LocalJWTVerifier
+
         app.state.jwt_verifier = LocalJWTVerifier(settings.local_development_secret)
     yield
     db: DBManager = app.state.db

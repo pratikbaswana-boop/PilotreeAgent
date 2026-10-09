@@ -37,22 +37,32 @@ const schema = z.object({
   summary: z.string().min(1).max(1000),
   category: z.enum(categories),
   priority: z.enum(priorities),
-  reason: z.string().min(1).max(1000),
+  priority_reason: z.string().min(1).max(200),
   suggested_action: z.string().min(1).max(1000),
   missing_info: z.array(z.string().max(150)).max(6),
   risk_flags: z.array(z.string().max(100)).max(6),
   needs_human_call: z.boolean(),
+  recommended_tools: z
+    .array(
+      z.object({
+        tool: z.string(),
+        reason: z.string().max(200),
+        is_primary: z.boolean(),
+      }),
+    )
+    .max(3),
 });
 type Result = z.infer<typeof schema>;
 const blank: Result = {
   summary: "",
   category: "other",
   priority: "medium",
-  reason: "",
+  priority_reason: "",
   suggested_action: "",
   missing_info: [],
   risk_flags: [],
   needs_human_call: false,
+  recommended_tools: [],
 };
 type Modal = {
   kind: "approve" | "reject" | "override_block" | "send" | "retry" | "resend";
@@ -168,7 +178,13 @@ export function DetailPanel({
   const dirty = form.formState.isDirty;
   useEffect(() => {
     if (analysis && !dirty) {
-      form.reset({ ...blank, ...analysis.result } as Result);
+      const result = analysis.result as Record<string, unknown> | null;
+      form.reset({
+        ...blank,
+        ...result,
+        priority_reason:
+          String(result?.priority_reason || result?.reason || ""),
+      } as Result);
       setBaseVersion(analysis.version);
     }
   }, [analysis, dirty, form]);
@@ -490,10 +506,10 @@ export function DetailPanel({
                   </label>
                 </div>
                 <label>
-                  Reason
+                  Priority reason
                   <Textarea
-                    {...form.register("reason")}
-                    maxLength={1000}
+                    {...form.register("priority_reason")}
+                    maxLength={200}
                     rows={2}
                   />
                 </label>
@@ -721,8 +737,8 @@ export function DetailPanel({
                 </label>
               </div>
               <label>
-                Reason
-                <Textarea {...form.register("reason")} />
+                Priority reason
+                <Textarea {...form.register("priority_reason")} />
               </label>
               <label>
                 Suggested action

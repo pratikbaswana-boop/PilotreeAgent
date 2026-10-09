@@ -46,6 +46,7 @@ class GeminiProvider:
         """Lazily initialize the Gemini client."""
         if self._client is None:
             from google import genai  # type: ignore[import-not-found]
+
             self._client = genai.Client(api_key=self._config.api_key)
         return self._client
 
@@ -187,6 +188,7 @@ class GeminiProvider:
     def _calculate_cost(self, input_tokens: int, output_tokens: int) -> Any:
         """Calculate cost in USD."""
         from decimal import Decimal
+
         cost = (
             Decimal(str(input_tokens)) * Decimal(str(self._config.cost_per_1k_input))
             + Decimal(str(output_tokens)) * Decimal(str(self._config.cost_per_1k_output))

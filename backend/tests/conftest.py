@@ -46,6 +46,7 @@ ADMIN_DB_URL = "postgresql+asyncpg://triage:triage_dev@localhost:5432/triage"
 
 # ── JWT test helpers ──────────────────────────────────────────────
 
+
 class StaticKeyJWTVerifier:
     """Test-only verifier: checks JWTs against a static public key."""
 
@@ -86,6 +87,7 @@ def create_test_jwt(
 
 
 # ── Session fixtures ──────────────────────────────────────────────
+
 
 @pytest.fixture(scope="session")
 def rsa_key_pair() -> tuple[bytes, bytes]:
@@ -175,6 +177,7 @@ async def _clean_tables(db_engine: AsyncEngine) -> AsyncIterator[None]:
 
 # ── Convenience fixtures ───────────────────────────────────────────
 
+
 @pytest.fixture
 def auth_token(rsa_key_pair: tuple[bytes, bytes]) -> str:
     private_pem, _ = rsa_key_pair
@@ -212,9 +215,8 @@ async def reviewer_headers(
 
     async with db_engine.begin() as conn:
         from sqlalchemy import select
-        result = await conn.execute(
-            select(User).where(User.oidc_subject == "test-reviewer-001")
-        )
+
+        result = await conn.execute(select(User).where(User.oidc_subject == "test-reviewer-001"))
         if result.scalar_one_or_none() is None:
             await conn.execute(
                 text(
@@ -248,9 +250,8 @@ async def admin_headers(
 
     async with db_engine.begin() as conn:
         from sqlalchemy import select
-        result = await conn.execute(
-            select(User).where(User.oidc_subject == "test-admin-001")
-        )
+
+        result = await conn.execute(select(User).where(User.oidc_subject == "test-admin-001"))
         if result.scalar_one_or_none() is None:
             await conn.execute(
                 text(

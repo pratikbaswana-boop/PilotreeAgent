@@ -124,6 +124,7 @@ class LinearTool:
         return (
             f"**Category:** {payload.get('category', 'N/A')}\n"
             f"**Priority:** {payload.get('priority', 'N/A')}\n"
+            f"**Priority reason:** {payload.get('priority_reason', '')}\n"
             f"**Summary:** {payload.get('summary', '')}\n"
             f"**Suggested Action:** {payload.get('suggested_action', '')}\n"
             f"\n---\n_idempotency_key: {idempotency_key}_"

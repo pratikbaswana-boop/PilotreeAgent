@@ -7,9 +7,9 @@ ReviewPrompt/ReviewDecision implement the interrupt/resume contract (Fix 1).
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 from app.domain.enums import Decision
 
@@ -33,17 +33,58 @@ class ScreenVerdicts(TypedDict, total=False):
     pii: Verdict | None
 
 
+class RecommendedTool(BaseModel):
+    tool: str
+    reason: str = Field(max_length=200)
+    is_primary: bool
+
+
 class AnalysisOut(BaseModel):
     """AI analysis result — the structured output the LLM produces."""
 
-    summary: str = ""
-    category: str = ""
-    priority: str = ""
-    reason: str = ""
-    suggested_action: str = ""
-    missing_info: list[str] = []
-    risk_flags: list[str] = []
+    summary: str = Field(max_length=300)
+    category: Literal[
+        "delivery_issue",
+        "failed_delivery",
+        "damage_claim",
+        "billing_query",
+        "booking_or_quote",
+        "sales_lead",
+        "reporting_request",
+        "suspicious",
+        "other",
+    ]
+    priority: Literal["low", "medium", "high", "critical"]
+    priority_reason: str = Field(max_length=200)
+    suggested_action: str = Field(max_length=300)
+    missing_info: list[str] = Field(default_factory=list, max_length=6)
+    risk_flags: list[
+        Literal[
+            "time_critical",
+            "cold_chain",
+            "possible_fraud",
+            "injection_suspected",
+            "repeat_contact",
+            "status_conflict",
+            "our_fault_possible",
+        ]
+    ] = Field(default_factory=list)
     needs_human_call: bool = False
+    recommended_tools: list[RecommendedTool] = Field(default_factory=list, max_length=3)
+
+    @model_validator(mode="after")
+    def validate_unique_lists_and_primary(self) -> AnalysisOut:
+        if len(self.missing_info) != len(set(self.missing_info)):
+            raise ValueError("missing_info must not contain duplicates")
+        if len(self.risk_flags) != len(set(self.risk_flags)):
+            raise ValueError("risk_flags must not contain duplicates")
+        names = [item.tool for item in self.recommended_tools]
+        if len(names) != len(set(names)):
+            raise ValueError("recommended_tools must not contain duplicates")
+        primary_count = sum(item.is_primary for item in self.recommended_tools)
+        if primary_count != (1 if self.recommended_tools else 0):
+            raise ValueError("recommended_tools must contain exactly one primary tool")
+        return self
 
 
 class Usage(BaseModel):

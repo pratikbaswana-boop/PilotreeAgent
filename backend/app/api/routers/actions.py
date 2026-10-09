@@ -452,16 +452,17 @@ async def get_action_proposals(
     injection_found = await _injection_restriction(db, analysis_uuid)
     result = analysis.result or {}
     priority = str(result.get("priority", ""))
+    recommendations = {
+        item.get("tool"): item
+        for item in result.get("recommended_tools", [])
+        if isinstance(item, dict)
+    }
     configs = (await db.scalars(select(ToolConfig).order_by(ToolConfig.key))).all()
     labels = {"slack": "Slack", "linear": "Linear", "sheets": "Google Sheets"}
-    suggested = {
-        "slack": {"high", "critical"},
-        "linear": {"medium", "high", "critical"},
-        "sheets": {"low", "medium"},
-    }
     proposals = []
     for config in configs:
-        recommended = priority in suggested.get(config.key, set())
+        recommendation = recommendations.get(config.key)
+        recommended = recommendation is not None
         proposals.append(
             {
                 "destination": config.key,
@@ -469,7 +470,7 @@ async def get_action_proposals(
                 "action_label": f"Send alert to {labels.get(config.key, config.key.title())}",
                 "recommended": recommended,
                 "reason": (
-                    f"Recommended for {priority or 'this'} priority enquiries."
+                    str(recommendation.get("reason", "Recommended by the analysis."))
                     if recommended
                     else (
                         "Available for manual routing of this "

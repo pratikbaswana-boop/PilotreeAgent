@@ -47,8 +47,8 @@ _reviewer = require_role(UserRole.reviewer)
 _viewer = require_role(UserRole.viewer)
 
 # Prompt/schema versions (would be config-driven in production)
-PROMPT_VERSION = "v2"
-SCHEMA_VERSION = "v1"
+PROMPT_VERSION = "v3"
+SCHEMA_VERSION = "v2"
 
 
 def _compute_input_hash(enquiry: Enquiry) -> str:

@@ -4,6 +4,7 @@ from app.domain.warnings import compute_pure_warnings
 
 # ── Pure checks ────────────────────────────────────────────────────
 
+
 def test_missing_name_empty() -> None:
     missing, _ = compute_pure_warnings("", "user@example.com")
     assert missing is True

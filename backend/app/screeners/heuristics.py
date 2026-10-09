@@ -53,8 +53,7 @@ class DeterministicScreener:
             if reply_domain != sender_domain:
                 reason_codes.append("domain_mismatch")
                 evidence.append(
-                    f"Reply-to domain '{reply_domain}' != sender domain "
-                    f"'{sender_domain}'"
+                    f"Reply-to domain '{reply_domain}' != sender domain " f"'{sender_domain}'"
                 )
 
         # status_conflict: listed status says delivered but message says
@@ -64,14 +63,10 @@ class DeterministicScreener:
             text_lower = text.lower()
             if "delivered" in listed_status and "not delivered" in text_lower:
                 reason_codes.append("status_conflict")
-                evidence.append(
-                    "Status says 'delivered' but message says 'not delivered'"
-                )
+                evidence.append("Status says 'delivered' but message says 'not delivered'")
             elif "pending" in listed_status and "delivered" in text_lower:
                 reason_codes.append("status_conflict")
-                evidence.append(
-                    "Status says 'pending' but message says 'delivered'"
-                )
+                evidence.append("Status says 'pending' but message says 'delivered'")
 
         if not reason_codes:
             return Verdict(

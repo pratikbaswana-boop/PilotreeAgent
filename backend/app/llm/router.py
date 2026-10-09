@@ -69,9 +69,7 @@ class ProviderRouter:
                 continue
 
             # Check rate limit
-            rate_decision = await self._limiter.acquire(
-                db, "provider", provider.name, cost=1
-            )
+            rate_decision = await self._limiter.acquire(db, "provider", provider.name, cost=1)
             if not rate_decision.allowed:
                 logger.info(
                     "provider.skipped_rate_limited",
@@ -81,9 +79,7 @@ class ProviderRouter:
                 continue
 
             # Acquire bulkhead
-            await self._bulkheads.acquire(
-                f"provider:{provider.name}", max_concurrent=10
-            )
+            await self._bulkheads.acquire(f"provider:{provider.name}", max_concurrent=10)
 
             try:
                 result = await provider.generate_structured(request, schema)
@@ -118,9 +114,7 @@ class ProviderRouter:
             finally:
                 self._bulkheads.release(f"provider:{provider.name}")
 
-        raise ProviderUnavailable(
-            f"All providers failed: {'; '.join(errors)}"
-        )
+        raise ProviderUnavailable(f"All providers failed: {'; '.join(errors)}")
 
     async def health(self) -> dict[str, HealthStatus]:
         """Check health of all providers."""
@@ -129,7 +123,5 @@ class ProviderRouter:
             try:
                 results[entry.provider.name] = await entry.provider.health()
             except Exception as exc:
-                results[entry.provider.name] = HealthStatus(
-                    healthy=False, detail=str(exc)
-                )
+                results[entry.provider.name] = HealthStatus(healthy=False, detail=str(exc))
         return results

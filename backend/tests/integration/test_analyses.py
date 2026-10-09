@@ -117,10 +117,7 @@ async def test_start_analysis_reuses_completed(
     # Mark the analysis as completed (pending_review)
     async with db_engine.begin() as conn:
         await conn.execute(
-            text(
-                "UPDATE analyses SET status = 'pending_review'"
-                " WHERE id = :id"
-            ),
+            text("UPDATE analyses SET status = 'pending_review'" " WHERE id = :id"),
             {"id": first["analysis_id"]},
         )
 

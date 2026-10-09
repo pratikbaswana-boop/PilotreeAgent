@@ -27,7 +27,17 @@ async def test_analysis_dispatch_persists_and_does_not_repeat(db_engine):
     router = SimpleNamespace(
         generate_structured=AsyncMock(
             return_value=GenerateResult(
-                data={"summary": "A test enquiry", "category": "other", "priority": "medium"},
+                    data={
+                        "summary": "A test enquiry",
+                        "category": "other",
+                        "priority": "medium",
+                        "priority_reason": "Routine enquiry.",
+                        "suggested_action": "Review the enquiry.",
+                        "missing_info": [],
+                        "risk_flags": [],
+                        "needs_human_call": False,
+                        "recommended_tools": [],
+                    },
                 usage=Usage(model="fake-model"),
             )
         )
@@ -174,7 +184,17 @@ async def test_postgres_checkpoint_survives_handler_restart(db_engine):
     router = SimpleNamespace(
         generate_structured=AsyncMock(
             return_value=GenerateResult(
-                data={"summary": "Durable result", "category": "other", "priority": "medium"},
+                    data={
+                        "summary": "Durable result",
+                        "category": "other",
+                        "priority": "medium",
+                        "priority_reason": "Routine enquiry.",
+                        "suggested_action": "Review the enquiry.",
+                        "missing_info": [],
+                        "risk_flags": [],
+                        "needs_human_call": False,
+                        "recommended_tools": [],
+                    },
                 usage=Usage(model="fake-model"),
             )
         )

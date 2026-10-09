@@ -231,16 +231,25 @@ def test_reason_codes_table_complete() -> None:
     from app.screeners.reason_codes import REASON_CODES
 
     expected_codes = {
-        "missing_name", "invalid_email", "domain_mismatch",
-        "possible_duplicate", "status_conflict",
+        "missing_name",
+        "invalid_email",
+        "domain_mismatch",
+        "possible_duplicate",
+        "status_conflict",
         "pii_detected",
-        "injection_heuristic", "injection_judge",
-        "spoofed_sender", "encoded_payload",
-        "content_threat_violence", "content_self_harm",
-        "content_illegal_request", "content_harassment",
-        "content_hate", "content_sexual",
+        "injection_heuristic",
+        "injection_judge",
+        "spoofed_sender",
+        "encoded_payload",
+        "content_threat_violence",
+        "content_self_harm",
+        "content_illegal_request",
+        "content_harassment",
+        "content_hate",
+        "content_sexual",
         "provider_safety_block",
-        "output_invented_fact", "output_leakage",
+        "output_invented_fact",
+        "output_leakage",
         "cold_chain_floor",
     }
     assert set(REASON_CODES.keys()) == expected_codes

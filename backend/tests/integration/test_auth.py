@@ -17,6 +17,7 @@ pytestmark = pytest.mark.asyncio
 
 # ── GET /me ───────────────────────────────────────────────────────
 
+
 async def test_me_no_token(app_client: httpx.AsyncClient) -> None:
     resp = await app_client.get("/me")
     assert resp.status_code == 401
@@ -95,6 +96,7 @@ async def test_me_missing_sub_claim(
 
 
 # ── require_role unit tests ────────────────────────────────────────
+
 
 async def test_require_role_viewer_denied_admin() -> None:
     user = User(

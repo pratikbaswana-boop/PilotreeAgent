@@ -60,7 +60,7 @@ async def _create_analysis(
                         "summary": "Approved analysis",
                         "category": "delivery_issue",
                         "priority": "high",
-                        "reason": "Late delivery",
+                        "priority_reason": "Late delivery",
                         "suggested_action": "Contact carrier",
                         "missing_info": [],
                         "risk_flags": [],

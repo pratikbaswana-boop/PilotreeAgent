@@ -24,16 +24,18 @@ async def test_stub_provider_returns_valid_result() -> None:
     """Stub provider returns a valid structured result."""
     from app.graph.state import AnalysisOut
 
-    provider = StubProvider(response_data={
-        "summary": "Test summary",
-        "category": "delivery_issue",
-        "priority": "high",
-        "reason": "Late delivery",
-        "suggested_action": "Contact carrier",
-        "missing_info": [],
-        "risk_flags": [],
-        "needs_human_call": False,
-    })
+    provider = StubProvider(
+        response_data={
+            "summary": "Test summary",
+            "category": "delivery_issue",
+            "priority": "high",
+            "priority_reason": "Late delivery",
+            "suggested_action": "Contact carrier",
+            "missing_info": [],
+            "risk_flags": [],
+            "needs_human_call": False,
+        }
+    )
 
     request = GenerateRequest(
         system_prompt="You are a logistics triage assistant.",
@@ -110,16 +112,18 @@ async def test_router_uses_first_provider(db_engine: AsyncEngine) -> None:
     from app.graph.state import AnalysisOut
 
     registry = ProviderRegistry()
-    provider = StubProvider(response_data={
-        "summary": "Router test",
-        "category": "other",
-        "priority": "low",
-        "reason": "test",
-        "suggested_action": "none",
-        "missing_info": [],
-        "risk_flags": [],
-        "needs_human_call": False,
-    })
+    provider = StubProvider(
+        response_data={
+            "summary": "Router test",
+            "category": "other",
+            "priority": "low",
+            "priority_reason": "test",
+            "suggested_action": "none",
+            "missing_info": [],
+            "risk_flags": [],
+            "needs_human_call": False,
+        }
+    )
     registry.register(provider, priority=1, config=ProviderConfig(model="stub", api_key="k"))
 
     breaker = CircuitBreaker(failure_threshold=5)
@@ -128,7 +132,9 @@ async def test_router_uses_first_provider(db_engine: AsyncEngine) -> None:
     router = ProviderRouter(registry, breaker, bulkheads, limiter)
 
     request = GenerateRequest(
-        system_prompt="test", user_prompt="test", schema_name="AnalysisOut",
+        system_prompt="test",
+        user_prompt="test",
+        schema_name="AnalysisOut",
         deadline=DeadlineBudget(),
     )
 
@@ -147,16 +153,18 @@ async def test_router_fails_over_to_second_provider(db_engine: AsyncEngine) -> N
     registry = ProviderRegistry()
     failing = StubProvider(error=Timeout("First provider timeout"), error_on_call=1)
     failing.name = "failing"
-    succeeding = StubProvider(response_data={
-        "summary": "Failover success",
-        "category": "other",
-        "priority": "low",
-        "reason": "test",
-        "suggested_action": "none",
-        "missing_info": [],
-        "risk_flags": [],
-        "needs_human_call": False,
-    })
+    succeeding = StubProvider(
+        response_data={
+            "summary": "Failover success",
+            "category": "other",
+            "priority": "low",
+            "priority_reason": "test",
+            "suggested_action": "none",
+            "missing_info": [],
+            "risk_flags": [],
+            "needs_human_call": False,
+        }
+    )
     succeeding.name = "succeeding"
 
     registry.register(failing, priority=1, config=ProviderConfig(model="f", api_key="k"))
@@ -168,7 +176,9 @@ async def test_router_fails_over_to_second_provider(db_engine: AsyncEngine) -> N
     router = ProviderRouter(registry, breaker, bulkheads, limiter)
 
     request = GenerateRequest(
-        system_prompt="test", user_prompt="test", schema_name="AnalysisOut",
+        system_prompt="test",
+        user_prompt="test",
+        schema_name="AnalysisOut",
         deadline=DeadlineBudget(),
     )
 
@@ -195,7 +205,9 @@ async def test_router_raises_unavailable_when_all_fail(db_engine: AsyncEngine) -
     router = ProviderRouter(registry, breaker, bulkheads, limiter)
 
     request = GenerateRequest(
-        system_prompt="test", user_prompt="test", schema_name="AnalysisOut",
+        system_prompt="test",
+        user_prompt="test",
+        schema_name="AnalysisOut",
         deadline=DeadlineBudget(),
     )
 

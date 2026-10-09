@@ -35,6 +35,7 @@ class Base(DeclarativeBase):
 
 # ── users ─────────────────────────────────────────────────────────
 
+
 class User(Base):
     __tablename__ = "users"
 
@@ -58,6 +59,7 @@ class User(Base):
 
 
 # ── enquiries ──────────────────────────────────────────────────────
+
 
 class Enquiry(Base):
     __tablename__ = "enquiries"
@@ -95,9 +97,7 @@ class Enquiry(Base):
     claimed_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
-    claimed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     claim_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -111,6 +111,7 @@ class Enquiry(Base):
 
 
 # ── analyses ──────────────────────────────────────────────────────
+
 
 class Analysis(Base):
     __tablename__ = "analyses"
@@ -154,6 +155,7 @@ class Analysis(Base):
 
 # ── safety_verdicts ────────────────────────────────────────────────
 
+
 class SafetyVerdict(Base):
     __tablename__ = "safety_verdicts"
     __table_args__ = (Index("idx_verdicts_analysis", "analysis_id"),)
@@ -167,9 +169,7 @@ class SafetyVerdict(Base):
         UUID(as_uuid=True), ForeignKey("analyses.id"), nullable=False
     )
     stage: Mapped[str] = mapped_column(Text, nullable=False)
-    decision: Mapped[Decision] = mapped_column(
-        Enum(Decision, name="decision"), nullable=False
-    )
+    decision: Mapped[Decision] = mapped_column(Enum(Decision, name="decision"), nullable=False)
     reason_codes: Mapped[list[str]] = mapped_column(
         ARRAY(Text), nullable=False, server_default=text("'{}'")
     )
@@ -183,6 +183,7 @@ class SafetyVerdict(Base):
 
 
 # ── reviews ────────────────────────────────────────────────────────
+
 
 class Review(Base):
     __tablename__ = "reviews"
@@ -208,6 +209,7 @@ class Review(Base):
 
 
 # ── actions ────────────────────────────────────────────────────────
+
 
 class Action(Base):
     __tablename__ = "actions"
@@ -266,6 +268,7 @@ class Action(Base):
 
 # ── action_attempts ───────────────────────────────────────────────
 
+
 class ActionAttempt(Base):
     __tablename__ = "action_attempts"
     __table_args__ = (Index("idx_attempts_action", "action_id"),)
@@ -289,6 +292,7 @@ class ActionAttempt(Base):
 
 # ── tool_configs ──────────────────────────────────────────────────
 
+
 class ToolConfig(Base):
     __tablename__ = "tool_configs"
 
@@ -303,6 +307,7 @@ class ToolConfig(Base):
 
 
 # ── audit_log ─────────────────────────────────────────────────────
+
 
 class AuditLog(Base):
     __tablename__ = "audit_log"
@@ -324,6 +329,7 @@ class AuditLog(Base):
 
 # ── idempotency_keys ──────────────────────────────────────────────
 
+
 class IdempotencyKey(Base):
     __tablename__ = "idempotency_keys"
 
@@ -341,6 +347,7 @@ class IdempotencyKey(Base):
 
 
 # ── jobs ──────────────────────────────────────────────────────────
+
 
 class Job(Base):
     __tablename__ = "jobs"
@@ -370,9 +377,7 @@ class Job(Base):
     lease_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    heartbeat_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("5"))
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -386,6 +391,7 @@ class Job(Base):
 
 
 # ── rate_limit_buckets ────────────────────────────────────────────
+
 
 class RateLimitBucket(Base):
     __tablename__ = "rate_limit_buckets"
@@ -401,6 +407,7 @@ class RateLimitBucket(Base):
 
 # ── breaker_state ─────────────────────────────────────────────────
 
+
 class BreakerState(Base):
     __tablename__ = "breaker_state"
 
@@ -408,9 +415,7 @@ class BreakerState(Base):
     state: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'closed'"))
     failure_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     success_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
-    opened_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     half_open_probe_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -423,6 +428,7 @@ class BreakerState(Base):
 
 
 # ── events ────────────────────────────────────────────────────────
+
 
 class Event(Base):
     __tablename__ = "events"

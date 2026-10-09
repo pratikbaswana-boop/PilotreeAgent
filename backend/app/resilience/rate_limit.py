@@ -129,9 +129,7 @@ class RateLimiter:
         # Not enough tokens
         deficit = cost - tokens_before_deduct
         retry_after_ms = (
-            int((deficit / self._refill_rate) * 1000)
-            if self._refill_rate > 0
-            else 1000
+            int((deficit / self._refill_rate) * 1000) if self._refill_rate > 0 else 1000
         )
         return RateLimitDecision(
             allowed=False,

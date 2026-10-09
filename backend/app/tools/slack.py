@@ -58,6 +58,7 @@ class SlackTool:
                             "text": (
                                 f"*{payload.get('category', 'N/A')}*"
                                 f" — {payload.get('priority', 'N/A')}\n"
+                                f"{payload.get('priority_reason', '')}\n"
                                 f"{payload.get('summary', '')}\n"
                                 f"_{payload.get('suggested_action', '')}_"
                             ),

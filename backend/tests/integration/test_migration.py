@@ -29,10 +29,21 @@ async def test_migration_upgrade_downgrade(test_db: None) -> None:
         tables = {row[0] for row in result.fetchall()}
 
     expected_tables = {
-        "users", "enquiries", "analyses", "safety_verdicts", "reviews",
-        "actions", "action_attempts", "tool_configs", "audit_log",
-        "idempotency_keys", "jobs", "rate_limit_buckets", "breaker_state",
-        "events", "alembic_version",
+        "users",
+        "enquiries",
+        "analyses",
+        "safety_verdicts",
+        "reviews",
+        "actions",
+        "action_attempts",
+        "tool_configs",
+        "audit_log",
+        "idempotency_keys",
+        "jobs",
+        "rate_limit_buckets",
+        "breaker_state",
+        "events",
+        "alembic_version",
     }
     assert tables == expected_tables, f"Missing tables: {expected_tables - tables}"
 
@@ -48,7 +59,12 @@ async def test_migration_upgrade_downgrade(test_db: None) -> None:
         types = {row[0] for row in result.fetchall()}
 
     expected_types = {
-        "user_role", "priority", "category", "decision", "action_status", "job_status",
+        "user_role",
+        "priority",
+        "category",
+        "decision",
+        "action_status",
+        "job_status",
     }
     assert types == expected_types
 

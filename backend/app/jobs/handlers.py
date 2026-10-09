@@ -58,6 +58,55 @@ class AnalysisHandler:
         enquiry = await db.get(Enquiry, analysis.enquiry_id)
         if enquiry is None:
             raise ValueError("Analysis enquiry is missing")
+        tool_configs = (
+            await db.scalars(select(ToolConfig).where(ToolConfig.enabled.is_(True)))
+        ).all()
+        tool_capabilities = {
+            "slack": {
+                "description": "Notify operations teams and provide urgent visibility.",
+                "supported_actions": ["send_alert"],
+                "applicable_categories": ["delivery_issue", "failed_delivery", "damage_claim"],
+                "capabilities": ["urgent_visibility", "team_notification", "escalation"],
+            },
+            "linear": {
+                "description": "Create tracked work with ownership and follow-up.",
+                "supported_actions": ["create_issue"],
+                "applicable_categories": [
+                    "delivery_issue",
+                    "failed_delivery",
+                    "damage_claim",
+                    "billing_query",
+                    "booking_or_quote",
+                ],
+                "capabilities": ["issue_tracking", "ownership", "investigation"],
+            },
+            "sheets": {
+                "description": "Append structured records for sales, quotes, and reporting.",
+                "supported_actions": ["append_record"],
+                "applicable_categories": [
+                    "booking_or_quote",
+                    "sales_lead",
+                    "reporting_request",
+                    "billing_query",
+                ],
+                "capabilities": ["structured_recordkeeping", "lead_tracking", "reporting"],
+            },
+        }
+        available_tools = [
+            {
+                "name": item.key,
+                **tool_capabilities.get(
+                    item.key,
+                    {
+                        "description": "Configured application integration.",
+                        "supported_actions": [],
+                        "applicable_categories": [],
+                        "capabilities": [],
+                    },
+                ),
+            }
+            for item in tool_configs
+        ]
 
         async def progress(node: str) -> None:
             if self.session_factory is None or node == "await_review":
@@ -105,8 +154,10 @@ class AnalysisHandler:
                         "metadata": {
                             "customer_name": enquiry.name,
                             "customer_email": enquiry.email,
+                            "company": enquiry.company,
                             "status": enquiry.status,
                         },
+                        "available_tools": available_tools,
                     },
                     "node_versions": {},
                 },

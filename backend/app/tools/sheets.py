@@ -69,7 +69,7 @@ class SheetsTool:
             payload.get("category", ""),
             payload.get("priority", ""),
             payload.get("suggested_action", ""),
-            payload.get("reason", ""),
+            payload.get("priority_reason", ""),
         ]
 
         body = {"values": [row]}
@@ -137,7 +137,7 @@ class SheetsTool:
             "category": getattr(analysis, "category", ""),
             "priority": getattr(analysis, "priority", ""),
             "suggested_action": getattr(analysis, "suggested_action", ""),
-            "reason": getattr(analysis, "reason", ""),
+            "priority_reason": getattr(analysis, "priority_reason", ""),
             "enquiry_id": getattr(enquiry, "id", ""),
             "customer_name": getattr(enquiry, "name", ""),
             "company": getattr(enquiry, "company", ""),

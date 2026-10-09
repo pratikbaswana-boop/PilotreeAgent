@@ -42,8 +42,7 @@ _ILLEGAL_PATTERNS = [
     re.compile(r"\b(illegal|smuggl(e|ing)|contra?band|customs evasion)\b", re.I),
     re.compile(r"\b(bribe|corrupt|fraud(ulent)?)\b", re.I),
     re.compile(
-        r"\b(fake|forge(d|ry)|counterfeit)\b"
-        r".{0,20}\b(document|invoice|certificate)\b",
+        r"\b(fake|forge(d|ry)|counterfeit)\b" r".{0,20}\b(document|invoice|certificate)\b",
         re.I,
     ),
 ]

@@ -35,9 +35,7 @@ _PII_KEYS = frozenset(
 )
 
 
-def _redact_pii(
-    _logger: Any, _method_name: str, event_dict: Any
-) -> Any:
+def _redact_pii(_logger: Any, _method_name: str, event_dict: Any) -> Any:
     """structlog processor: redact values whose key matches a PII pattern."""
     for key in list(event_dict):
         if any(pii in key.lower() for pii in _PII_KEYS):
@@ -84,9 +82,7 @@ class CorrelationIdMiddleware:
         # Echo the correlation ID back in the response.
         async def send_with_id(message: Any) -> None:
             if message["type"] == "http.response.start":
-                response_headers: Iterable[tuple[bytes, bytes]] = message.get(
-                    "headers", []
-                )
+                response_headers: Iterable[tuple[bytes, bytes]] = message.get("headers", [])
                 message["headers"] = [
                     *response_headers,
                     (b"x-request-id", request_id.encode()),

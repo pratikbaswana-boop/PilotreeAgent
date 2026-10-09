@@ -48,7 +48,7 @@ async def _create_analysis(
         "summary": "Test summary",
         "category": "other",
         "priority": "medium",
-        "reason": "test",
+        "priority_reason": "test",
         "suggested_action": "review",
         "missing_info": [],
         "risk_flags": [],

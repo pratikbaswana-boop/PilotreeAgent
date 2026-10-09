@@ -41,7 +41,6 @@ from app.graph.state import TriageState
 
 # Decisions that skip the LLM call and go straight to review
 _SKIP_LLM_DECISIONS = {
-    Decision.QUARANTINE.value,
     Decision.BLOCK.value,
 }
 

@@ -3,7 +3,7 @@ const result = {
   summary: "A chilled delivery is overdue.",
   category: "delivery_issue",
   priority: "high",
-  reason: "The expected delivery date has passed.",
+  priority_reason: "The expected delivery date has passed.",
   suggested_action:
     "Ask for the shipment reference and expected delivery date.",
   missing_info: ["Shipment reference"],
@@ -354,7 +354,9 @@ test("admin block override collects manual result and reason", async ({
   await dialog
     .getByLabel("Summary", { exact: true })
     .fill("Manually reviewed enquiry");
-  await dialog.getByLabel("Reason", { exact: true }).fill("Content verified");
+  await dialog
+    .getByLabel("Priority reason", { exact: true })
+    .fill("Content verified");
   await dialog
     .getByLabel("Suggested action", { exact: true })
     .fill("Contact the customer");
