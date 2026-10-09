@@ -1,67 +1,155 @@
-# Logistics Enquiry Triage Tool
+# Pilotree — AI Customer Enquiry Triage
 
-A reviewer workspace for reading logistics enquiries, running AI analysis, editing and approving results, and explicitly sending to configured Slack, Linear, or Sheets destinations.
+A working take-home project for reviewing customer enquiries, enriching them with Gemini, and sending approved follow-up work to Linear or Slack.
 
-`DESIGN.md` contains the system design. `DECISIONS.md` records implementation choices.
+## Live demo
+
+**Application:** [pilotree-agent.onrender.com](https://pilotree-agent.onrender.com/enquiries)
+
+**Demo access code:** `PilotreeDemo-2026!`
+
+Render's free services may take about a minute to wake after inactivity. The application reconnects automatically once the API is ready.
+
+### Suggested reviewer flow
+
+1. Sign in with the demo access code.
+2. Browse the imported enquiries and open one from the list.
+3. Select **Analyse with AI** to generate a structured assessment from the original message.
+4. Review or edit the summary, category, priority, suggested action, missing information, and risk flags.
+5. Approve the analysis.
+6. Create a Linear task. A Slack alert is also available as an additional integration.
+
+The application never sends an enquiry automatically. Analysis approval and external delivery are separate user decisions.
+
+## What it demonstrates
+
+### 1. View enquiries
+
+The React interface provides a searchable master-detail workspace for the supplied fictional customer enquiries. Users can filter by status, priority, category, and safety outcome, then open an individual enquiry without losing their place in the list.
+
+### 2. Enrich an enquiry with AI
+
+The backend sends the actual enquiry content to Google Gemini and requests a validated structured result containing:
+
+- a concise summary;
+- category and priority;
+- a reason for the priority;
+- a suggested next action;
+- missing information;
+- operational risk flags; and
+- a recommended integration action when appropriate.
+
+The result remains editable and requires human review. A safety layer detects personal information and suspicious instructions before the model output reaches the review step. Suspected prompt injection is displayed prominently and tool actions are withheld for that analysis.
+
+### 3. Take an action
+
+After approval, a reviewer can create a Linear task containing the enquiry context and approved analysis. Linear is the primary integration for the exercise. Slack is included as a second, fully working option for operational alerts.
+
+Delivery runs through a durable outbox worker. The UI reports queued, sending, sent, failed, and uncertain outcomes and records each attempt, making retries visible instead of silently repeating an external action.
+
+## Product decisions
+
+- **Human approval before action:** AI assists with triage; a reviewer owns the final decision.
+- **Grounded structured output:** Gemini must use the enquiry as its source and return a schema-validated result.
+- **Safe handling of untrusted text:** prompt injection and sensitive-data screening happen before external actions are proposed.
+- **One primary integration:** Linear is the clearest useful action for assigning and tracking enquiry follow-up. Slack is a small additional demonstration.
+- **Write-only credentials:** configured destination secrets are redacted by the API and masked in Settings. Users can replace them without reading the stored value.
+
+The prompts used during the meaningful parts of the build, along with what was kept and rejected, are documented in [AI_notes.docx](./AI_notes.docx).
+
+## Technology
+
+| Area | Choice |
+| --- | --- |
+| Frontend | React, TypeScript, Vite, TanStack Router and Query |
+| Backend | Python 3.12, FastAPI, Pydantic, SQLAlchemy |
+| Database | PostgreSQL |
+| AI | Google Gemini with structured output |
+| Workflow | LangGraph plus a PostgreSQL-backed job queue |
+| Integrations | Linear and Slack |
+| Live updates | Server-sent events with polling fallback |
+| Deployment | Render static site, backend service with worker, and PostgreSQL |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Browser[React workspace] -->|REST and SSE| API[FastAPI API]
+    API --> DB[(PostgreSQL)]
+    API -->|enqueue analysis/action| Jobs[(Job queue)]
+    Worker[Background worker] --> Jobs
+    Worker -->|structured analysis| Gemini[Google Gemini]
+    Worker -->|approved action| Linear[Linear API]
+    Worker -->|approved action| Slack[Slack webhook]
+    Worker --> DB
+    DB -->|events| API
+```
+
+The API persists the enquiry and queues analysis work. The worker runs the safety and LLM workflow, saves the result, and emits events for the UI. Once a human approves the analysis and explicitly selects a destination, the worker leases the outbox action, performs the external request, and records the attempt.
 
 ## Run locally
 
-Prerequisites: Python 3.12+, Node 20.19+ (Node 22.12+ recommended), PostgreSQL 16+.
+### Prerequisites
+
+- Python 3.12+
+- Node.js 20.19+ (22.12+ recommended)
+- PostgreSQL 16+
+- A Gemini API key
+
+### Backend and database
 
 ```bash
 docker compose up -d postgres
+
 cd backend
 uv venv
 uv pip install -e '.[dev]'
 cp ../.env.example .env
-# Configure DATABASE_URL, DATABASE_SESSION_POOL_URL, OIDC and GEMINI_API_KEY.
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
 
-In a second terminal, start the worker from `backend/`:
+Set `GEMINI_API_KEY` in `backend/.env` before running an analysis.
+
+Start the background worker in a second terminal:
 
 ```bash
+cd backend
 uv run python -m app.jobs.worker
 ```
 
-The worker registers `analyse`, `send_action`, and `resume_review`. It initializes the LangGraph checkpoint schema on the session connection, recovers legacy pending action rows, heartbeats job leases, and sweeps stuck sends. The database role needs schema creation privileges for the first checkpoint setup.
+Import the supplied dataset if starting with an empty database:
 
-In a third terminal:
+```bash
+cd backend
+uv run python scripts/import_enquiries.py /path/to/customer-enquiries.json
+```
+
+### Frontend
 
 ```bash
 cd frontend
 npm ci
 cp .env.example .env
-# Set VITE_OIDC_AUTHORITY and VITE_OIDC_CLIENT_ID.
 npm run dev
 ```
 
-Open the Vite URL. Register its exact `/auth/callback` URL in your OIDC client. The SPA uses authorization code with PKCE and silent token renewal; the API verifies the resulting access token. User roles are stored in the backend `users` table; newly provisioned accounts default to `viewer`. A reviewer/admin role is needed for mutations.
+For local testing without an OIDC provider, set `LOCAL_DEVELOPMENT_AUTH=true` and a random `LOCAL_DEVELOPMENT_SECRET` of at least 32 characters in `backend/.env`. Set `VITE_LOCAL_DEVELOPMENT_AUTH=true` in `frontend/.env`. The local-session endpoint only accepts loopback requests and approved local origins.
 
-The Vite development proxy sends `/api` to `http://127.0.0.1:8000`. In production, serve `frontend/dist` with SPA route fallback and reverse-proxy `/api` to FastAPI. Configure your host's CSP for the API and OIDC origins. This change does not deploy the application.
+### Configure destinations
 
-## Implemented flow
+Sign in as the local administrator and open **Settings**. Enter a Slack incoming webhook or a Linear API key and team ID, then save. Stored secrets are returned only as a configured/masked state and can be replaced through **Reconfigure**.
 
-- Enquiries master-detail view, URL filters, virtualized list, mobile detail route, theme toggle, command search, and OIDC session guard.
-- Analysis jobs run the safety graph and ProviderRouter, checkpoint the interrupt, persist result/usage/verdicts, and emit phase/result events.
-- Editable result form with validation, optimistic saves, explicit conflict reload/merge, five safety states, manual triage, review approval/rejection and admin override.
-- Approval and sending remain separate user actions. Destination selection previews the payload; resend and unknown-outcome retry require reasons.
-- Outbox jobs commit `sending` before network I/O, record attempts, back off confirmed retryable failures, and reconcile ambiguous results. Unknown sends are never silently replayed.
-- Fetch-based SSE reconnects with a fresh access token and Last-Event-ID; query polling covers disconnected periods. Loading, empty, failure, offline, and expired-session states are included.
+## Validation
 
-Configure destinations through the existing `/admin/tools/{key}` API. Tool configurations must match the schemas in `backend/app/tools/`. Real OIDC, Gemini, and destination credentials are required for live end-to-end use; none are embedded in the SPA.
-
-## Verify
-
-Backend tests use a disposable local `triage_test` database and the test credentials in `backend/tests/conftest.py`:
+Run the backend suite:
 
 ```bash
 cd backend
 uv run pytest -q
 ```
 
-Browser tests mock the API and external services; worker integration tests use real PostgreSQL and controlled provider/tool fakes, including persistent checkpoint recovery:
+Build and run the browser tests:
 
 ```bash
 cd frontend
@@ -70,24 +158,11 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Regenerate the frontend API schema after changing FastAPI routes:
+The automated suite covers the analysis workflow, safety decisions, review transitions, destination configuration, outbox leasing and recovery, action attempts, API behavior, and the main browser flows. External-service tests use controlled fakes and do not send real Slack messages or create real Linear tasks.
 
-```bash
-cd backend
-uv run python scripts/export_openapi.py
-cd ../frontend
-npm run generate:api
-```
+## Repository notes
 
-## Operational limits
-
-- Live external delivery and your organisation's OIDC refresh behavior require validation with your configured accounts. Automated tests do not send real messages.
-- Existing admin credential encryption/secret-manager support remains unfinished; protect admin endpoints and tool configuration storage. The UI does not expose credentials.
-- PII reveal with an audited reveal endpoint, aggregate navigation counts, and full administrator configuration forms are not implemented in this frontend. The original enquiry remains visible according to existing API authorization.
-- Review persistence stays atomic in the API; a durable job completes the graph checkpoint afterward (see decision 9).
-
-### Optional local development sign-in
-
-For localhost testing without an organisation identity provider, set `LOCAL_DEVELOPMENT_AUTH=true` and a randomly generated `LOCAL_DEVELOPMENT_SECRET` (at least 32 characters) in `backend/.env`, plus `VITE_LOCAL_DEVELOPMENT_AUTH=true` in `frontend/.env`. Bind both servers to loopback. The login screen then offers **Enter local workspace**, issuing an eight-hour signed administrator session. The endpoint rejects non-loopback callers and unapproved origins; the frontend option is disabled in production builds. The default remains OIDC.
-
-Use **New enquiry** to paste a message, then **Analyse with AI**. The configured Gemini model must be available to your API key; `gemini-3.5-flash-lite` was verified with a real structured call in this local setup. Availability and free-tier quotas are controlled by Google.
+- Environment files and credentials are excluded from Git.
+- [`render.yaml`](./render.yaml) describes the deployed services and required environment settings.
+- The OpenAPI schema used by the frontend is generated from FastAPI.
+- The public demo uses fictional customer data supplied for this exercise.
