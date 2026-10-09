@@ -33,7 +33,7 @@ from app.api.schemas.analyses import (
     ReviewDecisionRequest,
 )
 from app.deps import get_db_session
-from app.domain.enums import UserRole
+from app.domain.enums import JobStatus, UserRole
 from app.domain.models import Analysis, Enquiry, Event, Job, Review, SafetyVerdict, User
 from app.events import publish_event
 from app.graph.nodes.await_review import _build_review_prompt
@@ -109,6 +109,13 @@ async def start_analysis(
         )
     )
     in_flight = result.scalar_one_or_none()
+
+    if in_flight is not None:
+        existing_job = await db.get(Job, in_flight.job_id)
+        if existing_job is not None and existing_job.status == JobStatus.dead_letter:
+            in_flight.status = "failed"
+            in_flight.phase = "failed"
+            in_flight = None
 
     if in_flight is not None:
         # Single-flight: return the existing in-flight analysis
