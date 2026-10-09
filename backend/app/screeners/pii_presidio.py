@@ -40,11 +40,17 @@ async def _ensure_initialized() -> None:
 
     def _init() -> None:
         global _analyzer, _anonymizer, _initialized
-        from presidio_analyzer import AnalyzerEngine
-        from presidio_anonymizer import AnonymizerEngine
-
-        _analyzer = AnalyzerEngine()
-        _anonymizer = AnonymizerEngine()  # type: ignore[no-untyped-call]
+        try:
+            from presidio_analyzer import AnalyzerEngine
+            from presidio_anonymizer import AnonymizerEngine
+        except ImportError:
+            logger.warning(
+                "presidio_unavailable",
+                extra={"detail": "PII screening is running in no-op fallback mode"},
+            )
+        else:
+            _analyzer = AnalyzerEngine()
+            _anonymizer = AnonymizerEngine()  # type: ignore[no-untyped-call]
         _initialized = True
 
     await asyncio.get_event_loop().run_in_executor(None, _init)
