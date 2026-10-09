@@ -43,7 +43,13 @@ async def _injection_restriction(db: AsyncSession, analysis_id: uuid.UUID) -> bo
     verdicts = (
         await db.scalars(select(SafetyVerdict).where(SafetyVerdict.analysis_id == analysis_id))
     ).all()
-    return any(_INJECTION_REASON_CODES.intersection(v.reason_codes or []) for v in verdicts)
+    if any(_INJECTION_REASON_CODES.intersection(v.reason_codes or []) for v in verdicts):
+        return True
+    analysis = await db.get(Analysis, analysis_id)
+    return bool(
+        analysis
+        and "injection_suspected" in (analysis.result or {}).get("risk_flags", [])
+    )
 
 
 @router.post("/actions", status_code=status.HTTP_202_ACCEPTED)

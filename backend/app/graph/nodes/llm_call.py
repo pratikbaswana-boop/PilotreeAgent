@@ -67,7 +67,7 @@ async def llm_call(state: TriageState, *, router: Any = None, db: Any = None) ->
             (state.get("screen_verdicts", {}).get("injection") or {}).get("reason_codes", [])
         ) and "injection_suspected" not in response.data.get("risk_flags", []):
             response.data["risk_flags"].append("injection_suspected")
-        return {
+        output = {
             "llm_result": response.data,
             "llm_usage": usage,
             "node_versions": {
@@ -79,6 +79,22 @@ async def llm_call(state: TriageState, *, router: Any = None, db: Any = None) ->
                 },
             },
         }
+        if "injection_suspected" in response.data.get("risk_flags", []):
+            output["final_verdict"] = escalate(
+                [
+                    state.get("final_verdict") or {},
+                    {
+                        "stage": "injection",
+                        "decision": "QUARANTINE",
+                        "reason_codes": ["injection_judge"],
+                        "evidence": [
+                            "The analysis identified an attempt to manipulate the AI workflow."
+                        ],
+                        "severity": 60,
+                    },
+                ]
+            )
+        return output
     except ProviderError as exc:
         blocked = isinstance(exc, SafetyBlocked)
         verdict = escalate(

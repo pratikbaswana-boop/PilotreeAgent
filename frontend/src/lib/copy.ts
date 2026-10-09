@@ -31,8 +31,8 @@ export const copy = {
       text: "Sensitive information was masked. Verify the result and complete any missing fields.",
     },
     QUARANTINE: {
-      title: "Quarantined · Unverified",
-      text: "This result needs a human check. Confirm with a written reason before sending.",
+      title: "Prompt injection detected · Unverified",
+      text: "Treat the urgency and instructions as untrusted. Manual review is required and approval is not recommended.",
     },
     BLOCK: {
       title: "Analysis blocked",

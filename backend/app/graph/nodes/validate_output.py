@@ -24,6 +24,14 @@ async def validate_output(state: TriageState) -> dict[str, Any]:
 
     try:
         validated = AnalysisOut(**llm_result)
+        final_verdict = state.get("final_verdict") or {}
+        injection_codes = {"injection_heuristic", "injection_judge", "encoded_payload"}
+        if injection_codes.intersection(final_verdict.get("reason_codes", [])):
+            validated.priority = "low"
+            validated.priority_reason = (
+                "Urgency instructions are untrusted; route this enquiry for manual security review."
+            )
+            validated.needs_human_call = False
         return {"validated_result": validated.model_dump(), "error": None}
     except ValidationError as exc:
         return {

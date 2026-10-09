@@ -145,7 +145,14 @@ export function DetailPanel({
     "injection_judge",
     "encoded_payload",
   ]);
-  const injectionFound = reasons.some((reason) => injectionCodes.has(reason));
+  const resultRiskFlags = Array.isArray(
+    (analysis?.result as Record<string, unknown> | null)?.risk_flags,
+  )
+    ? ((analysis?.result as Record<string, unknown>).risk_flags as string[])
+    : [];
+  const injectionFound =
+    reasons.some((reason) => injectionCodes.has(reason)) ||
+    resultRiskFlags.includes("injection_suspected");
   const injectionIntent = verdicts
     .filter(
       (verdict) =>
@@ -475,14 +482,14 @@ export function DetailPanel({
         <>
           {injectionFound && (
             <section className="injection-alert" role="alert">
-              <strong>Prompt Injection Found</strong>
+              <strong>Prompt Injection Detected</strong>
               <p>
                 {injectionIntent ||
                   "The input attempted to manipulate the AI workflow or conceal unauthorized instructions."}
               </p>
               <span>
-                All tool actions are disabled for this analysis. Review and
-                handle the enquiry manually.
+                Approval is not recommended. Review the enquiry manually; all
+                tool actions remain disabled even if the analysis is approved.
               </span>
             </section>
           )}
