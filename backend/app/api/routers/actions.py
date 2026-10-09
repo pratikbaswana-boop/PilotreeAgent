@@ -29,6 +29,22 @@ router = APIRouter(tags=["actions"])
 _reviewer = require_role(UserRole.reviewer)
 _viewer = require_role(UserRole.viewer)
 
+_INJECTION_REASON_CODES = {
+    "injection_heuristic",
+    "injection_judge",
+    "encoded_payload",
+}
+
+
+async def _injection_restriction(db: AsyncSession, analysis_id: uuid.UUID) -> bool:
+    """Return true when an analysis must never be allowed to execute tools."""
+    from app.domain.models import SafetyVerdict
+
+    verdicts = (
+        await db.scalars(select(SafetyVerdict).where(SafetyVerdict.analysis_id == analysis_id))
+    ).all()
+    return any(_INJECTION_REASON_CODES.intersection(v.reason_codes or []) for v in verdicts)
+
 
 @router.post("/actions", status_code=status.HTTP_202_ACCEPTED)
 async def create_actions(
@@ -86,6 +102,12 @@ async def create_actions(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Analysis not found.",
+        )
+
+    if await _injection_restriction(db, analysis_uuid):
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail=("Tool execution is disabled because this analysis detected prompt injection."),
         )
 
     # Check analysis status — must be approved
@@ -272,6 +294,12 @@ async def retry_action(
             detail="Action not found.",
         )
 
+    if await _injection_restriction(db, action.analysis_id):
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail=("Tool execution is disabled because this analysis detected prompt injection."),
+        )
+
     # Must be in failed or unknown state
     if action.status not in (ActionStatus.failed, ActionStatus.unknown):
         raise HTTPException(
@@ -404,3 +432,62 @@ async def get_tools_metadata(
         )
 
     return metadata
+
+
+@router.get("/analyses/{analysis_id}/action-proposals")
+async def get_action_proposals(
+    analysis_id: str,
+    db: AsyncSession = Depends(get_db_session),
+    _user: User = Depends(_viewer),
+) -> dict[str, Any]:
+    """Generate executable proposals from an analysis and configured tools."""
+    try:
+        analysis_uuid = uuid.UUID(analysis_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=404, detail="Analysis not found.") from None
+    analysis = await db.get(Analysis, analysis_uuid)
+    if analysis is None:
+        raise HTTPException(status_code=404, detail="Analysis not found.")
+
+    injection_found = await _injection_restriction(db, analysis_uuid)
+    result = analysis.result or {}
+    priority = str(result.get("priority", ""))
+    configs = (await db.scalars(select(ToolConfig).order_by(ToolConfig.key))).all()
+    labels = {"slack": "Slack", "linear": "Linear", "sheets": "Google Sheets"}
+    suggested = {
+        "slack": {"high", "critical"},
+        "linear": {"medium", "high", "critical"},
+        "sheets": {"low", "medium"},
+    }
+    proposals = []
+    for config in configs:
+        recommended = priority in suggested.get(config.key, set())
+        proposals.append(
+            {
+                "destination": config.key,
+                "label": labels.get(config.key, config.key.replace("_", " ").title()),
+                "action_label": f"Send alert to {labels.get(config.key, config.key.title())}",
+                "recommended": recommended,
+                "reason": (
+                    f"Recommended for {priority or 'this'} priority enquiries."
+                    if recommended
+                    else (
+                        "Available for manual routing of this "
+                        f"{priority or 'unprioritised'} enquiry."
+                    )
+                ),
+                "executable": (
+                    bool(config.enabled) and not injection_found and analysis.status == "approved"
+                ),
+                "request": {
+                    "method": "POST",
+                    "path": "/actions",
+                    "body": {
+                        "analysis_id": str(analysis.id),
+                        "expected_analysis_version": analysis.version,
+                        "destinations": [config.key],
+                    },
+                },
+            }
+        )
+    return {"tool_execution_disabled": injection_found, "proposals": proposals}

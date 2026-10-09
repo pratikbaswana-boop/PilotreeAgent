@@ -29,6 +29,7 @@ import {
   type User,
   type Action,
   type Tool,
+  type ActionProposal,
 } from "@/lib/api";
 import { categories, priorities, copy, label } from "@/lib/copy";
 import { SafetyBanner } from "./SafetyBanner";
@@ -96,6 +97,15 @@ export function DetailPanel({
     queryFn: () => request<Tool[]>("/tools/metadata"),
     staleTime: 30000,
   });
+  const proposalsQ = useQuery({
+    queryKey: ["action-proposals", analysisId],
+    queryFn: () =>
+      request<{
+        tool_execution_disabled: boolean;
+        proposals: ActionProposal[];
+      }>(`/analyses/${analysisId}/action-proposals`),
+    enabled: !!analysisId,
+  });
   const healthQ = useQuery({
     queryKey: ["health"],
     queryFn: () => request<{ breakers: Record<string, string> }>("/healthz"),
@@ -120,6 +130,23 @@ export function DetailPanel({
   const reasons = verdicts.flatMap((v) =>
     Array.isArray(v.reason_codes) ? (v.reason_codes as string[]) : [],
   );
+  const injectionCodes = new Set([
+    "injection_heuristic",
+    "injection_judge",
+    "encoded_payload",
+  ]);
+  const injectionFound = reasons.some((reason) => injectionCodes.has(reason));
+  const injectionIntent = verdicts
+    .filter(
+      (verdict) =>
+        Array.isArray(verdict.reason_codes) &&
+        (verdict.reason_codes as string[]).some((reason) =>
+          injectionCodes.has(reason),
+        ),
+    )
+    .flatMap((verdict) =>
+      Array.isArray(verdict.evidence) ? (verdict.evidence as string[]) : [],
+    )[0];
   const canReview = user.role !== "viewer";
   const pending = analysis?.status === "pending_review";
   const working = ["pending", "in_progress"].includes(analysis?.status ?? "");
@@ -151,6 +178,7 @@ export function DetailPanel({
       qc.invalidateQueries({ queryKey: ["enquiry", id] }),
       qc.invalidateQueries({ queryKey: ["enquiries"] }),
       qc.invalidateQueries({ queryKey: ["actions", id] }),
+      qc.invalidateQueries({ queryKey: ["action-proposals", analysisId] }),
     ]);
   };
   const mutation = useMutation({
@@ -394,6 +422,19 @@ export function DetailPanel({
       )}
       {analysis && !working && (
         <>
+          {injectionFound && (
+            <section className="injection-alert" role="alert">
+              <strong>Prompt Injection Found</strong>
+              <p>
+                {injectionIntent ||
+                  "The input attempted to manipulate the AI workflow or conceal unauthorized instructions."}
+              </p>
+              <span>
+                All tool actions are disabled for this analysis. Review and
+                handle the enquiry manually.
+              </span>
+            </section>
+          )}
           <SafetyBanner decision={decision} reasons={reasons} />
           {!analysis.result && decision !== "BLOCK" && (
             <p className="manual-note">{copy.manual}</p>
@@ -528,45 +569,51 @@ export function DetailPanel({
               <h3>Destinations</h3>
               <span>Every send is your decision</span>
             </div>
-            <div className="destination-chips">
-              {(toolsQ.data ?? []).map((tool) => {
+            {injectionFound && (
+              <p className="tool-lock-note">
+                Tool execution is locked because prompt injection was detected.
+              </p>
+            )}
+            <div className="action-proposals">
+              {(proposalsQ.data?.proposals ?? []).map((proposal) => {
                 const sent = actionsQ.data?.some(
-                  (a) => a.destination === tool.key,
+                  (a) => a.destination === proposal.destination,
                 );
                 const disabled =
                   analysis.status !== "approved" ||
-                  !tool.enabled ||
+                  !proposal.executable ||
                   sent ||
                   decision === "BLOCK" ||
                   !canReview ||
-                  healthQ.data?.breakers?.[`tool:${tool.key}`] === "open";
+                  healthQ.data?.breakers?.[`tool:${proposal.destination}`] ===
+                    "open";
                 return (
-                  <button
-                    title={
-                      disabled
-                        ? "Approve first, check destination availability, or use resend below."
-                        : `Send to ${tool.label}`
-                    }
-                    key={tool.key}
-                    disabled={disabled}
-                    onClick={() => {
-                      open({ kind: "send" });
-                      setDestinations([tool.key]);
-                    }}
-                  >
-                    <PaperPlaneIcon />
-                    {tool.label}
-                  </button>
+                  <div className="action-proposal" key={proposal.destination}>
+                    <div>
+                      <strong>{proposal.action_label}</strong>
+                      {proposal.recommended && <span>Recommended</span>}
+                      <p>{proposal.reason}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      disabled={disabled}
+                      onClick={() => {
+                        open({ kind: "send" });
+                        setDestinations([proposal.destination]);
+                      }}
+                    >
+                      <PaperPlaneIcon /> {proposal.action_label}
+                    </Button>
+                  </div>
                 );
               })}
-              <button disabled>Calendar · Coming soon</button>
             </div>
-            {toolsQ.data?.length === 0 && (
+            {proposalsQ.data?.proposals.length === 0 && (
               <p className="muted">
                 No destinations configured. Ask an administrator to enable one.
               </p>
             )}
-            {toolsQ.isError && (
+            {proposalsQ.isError && (
               <p role="alert">Destinations could not be loaded.</p>
             )}
             <div className="outbox-list">
@@ -584,7 +631,7 @@ export function DetailPanel({
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={mutation.isPending}
+                        disabled={mutation.isPending || injectionFound}
                         onClick={() =>
                           action.status === "failed"
                             ? run(async () => {

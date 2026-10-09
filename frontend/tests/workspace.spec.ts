@@ -19,6 +19,7 @@ export async function mockWorkspace(
     status?: string;
     sendStatus?: string;
     conflict?: boolean;
+    injection?: boolean;
   } = {},
 ) {
   let analysis: any =
@@ -36,8 +37,16 @@ export async function mockWorkspace(
             {
               stage: "merged",
               decision: options.decision || "ALLOW",
-              reason_codes: options.decision ? ["review_required"] : [],
-              evidence: [],
+              reason_codes: options.injection
+                ? ["injection_heuristic"]
+                : options.decision
+                  ? ["review_required"]
+                  : [],
+              evidence: options.injection
+                ? [
+                    "The input attempted to override the assistant's trusted instructions or obtain protected prompt information.",
+                  ]
+                : [],
               severity: 0,
             },
           ],
@@ -178,6 +187,23 @@ export async function mockWorkspace(
     }
     if (path === "/analyses/analysis-1" && method === "GET")
       return json(analysis);
+    if (path === "/analyses/analysis-1/action-proposals")
+      return json({
+        tool_execution_disabled: !!options.injection,
+        proposals: ["slack", "linear", "sheets"].map((destination) => ({
+          destination,
+          label: destination === "sheets" ? "Google Sheets" : labelFor(destination),
+          action_label: `Send alert to ${destination === "sheets" ? "Google Sheets" : labelFor(destination)}`,
+          recommended: destination !== "sheets",
+          reason: "Recommended for high priority enquiries.",
+          executable: !options.injection,
+          request: {
+            method: "POST",
+            path: "/actions",
+            body: { destinations: [destination] },
+          },
+        })),
+      });
     if (path === "/analyses/analysis-1" && method === "PATCH") {
       if (conflict) {
         conflict = false;
@@ -249,8 +275,14 @@ async function approve(page: Page) {
   ).toBeVisible();
 }
 async function send(page: Page) {
-  await page.getByRole("button", { name: "Slack", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Send alert to Slack", exact: true })
+    .click();
   await page.getByRole("button", { name: "Confirm send", exact: true }).click();
+}
+
+function labelFor(value: string) {
+  return value[0].toUpperCase() + value.slice(1);
 }
 test("analyse, edit, approve, send, and deliberate resend", async ({
   page,
@@ -309,7 +341,7 @@ test("blocked reviewer cannot edit or send", async ({ page }) => {
     page.getByRole("button", { name: "Override block" }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Slack", exact: true }),
+    page.getByRole("button", { name: "Send alert to Slack", exact: true }),
   ).toBeDisabled();
 });
 test("admin block override collects manual result and reason", async ({
@@ -442,6 +474,30 @@ for (const [decision, title] of [
     await expect(page.getByLabel("Summary", { exact: true })).toBeEnabled();
   });
 }
+test("prompt injection shows red warning and disables every tool action", async ({
+  page,
+}) => {
+  await mockWorkspace(page, { decision: "QUARANTINE", injection: true });
+  await openEnquiry(page);
+  const warning = page.getByRole("alert").filter({
+    hasText: "Prompt Injection Found",
+  });
+  await expect(warning).toBeVisible();
+  await expect(warning).toContainText("attempted to override");
+  await expect(warning).toContainText("All tool actions are disabled");
+  await expect(
+    page.getByRole("button", { name: "Send alert to Slack", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Send alert to Linear", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", {
+      name: "Send alert to Google Sheets",
+      exact: true,
+    }),
+  ).toBeDisabled();
+});
 test("session expiry redirects to sign-in", async ({ page }) => {
   await mockWorkspace(page);
   await page.route("**/api/me", (route) =>

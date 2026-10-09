@@ -55,16 +55,18 @@ async def _create_analysis(
                 "eid": enquiry_id,
                 "ih": input_hash,
                 "st": status,
-                "r": json.dumps({
-                    "summary": "Approved analysis",
-                    "category": "delivery_issue",
-                    "priority": "high",
-                    "reason": "Late delivery",
-                    "suggested_action": "Contact carrier",
-                    "missing_info": [],
-                    "risk_flags": [],
-                    "needs_human_call": False,
-                }),
+                "r": json.dumps(
+                    {
+                        "summary": "Approved analysis",
+                        "category": "delivery_issue",
+                        "priority": "high",
+                        "reason": "Late delivery",
+                        "suggested_action": "Contact carrier",
+                        "missing_info": [],
+                        "risk_flags": [],
+                        "needs_human_call": False,
+                    }
+                ),
             },
         )
     return analysis_id
@@ -79,6 +81,19 @@ async def _seed_tool_config(db_engine: AsyncEngine, key: str, enabled: bool = Tr
                 " ON CONFLICT (key) DO UPDATE SET enabled = :enabled"
             ),
             {"key": key, "enabled": enabled},
+        )
+
+
+async def _mark_prompt_injection(db_engine: AsyncEngine, analysis_id: str) -> None:
+    async with db_engine.begin() as conn:
+        await conn.execute(
+            text(
+                "INSERT INTO safety_verdicts"
+                " (analysis_id, stage, decision, reason_codes, evidence, severity)"
+                " VALUES (:analysis_id, 'injection', 'QUARANTINE',"
+                " ARRAY['injection_heuristic'], ARRAY['override attempt'], 60)"
+            ),
+            {"analysis_id": analysis_id},
         )
 
 
@@ -161,6 +176,38 @@ async def test_create_actions_not_approved(
         headers=reviewer_headers,
     )
     assert response.status_code == 423
+
+
+async def test_prompt_injection_disables_proposals_and_action_execution(
+    app_client: httpx.AsyncClient,
+    reviewer_headers: dict[str, str],
+    db_engine: AsyncEngine,
+) -> None:
+    enquiry_id = await _create_enquiry(db_engine, "enq-injection-lock")
+    analysis_id = await _create_analysis(db_engine, enquiry_id)
+    await _seed_tool_config(db_engine, "slack", enabled=True)
+    await _mark_prompt_injection(db_engine, analysis_id)
+
+    proposals = await app_client.get(
+        f"/analyses/{analysis_id}/action-proposals", headers=reviewer_headers
+    )
+    assert proposals.status_code == 200
+    assert proposals.json()["tool_execution_disabled"] is True
+    assert proposals.json()["proposals"][0]["executable"] is False
+    assert proposals.json()["proposals"][0]["request"]["path"] == "/actions"
+
+    response = await app_client.post(
+        "/actions",
+        json={
+            "analysis_id": analysis_id,
+            "destinations": ["slack"],
+            "expected_analysis_version": 1,
+            "quarantine_confirmed": True,
+        },
+        headers=reviewer_headers,
+    )
+    assert response.status_code == 423
+    assert "prompt injection" in response.json()["detail"].lower()
 
 
 async def test_create_actions_version_conflict(

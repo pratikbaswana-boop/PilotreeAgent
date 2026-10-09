@@ -54,8 +54,10 @@ class InjectionScreener:
             match = pattern.search(text)
             if match:
                 reason_codes.append("injection_heuristic")
-                snippet = text[max(0, match.start() - 10):match.end() + 10]
-                evidence.append(f"Pattern '{pattern.pattern[:30]}' matched: ...{snippet}...")
+                evidence.append(
+                    "The input attempted to override the assistant's trusted instructions "
+                    "or obtain protected prompt information."
+                )
                 break  # one heuristic hit is enough
 
         # spoofed_sender: check sender email vs reply-to
@@ -67,18 +69,14 @@ class InjectionScreener:
             # Check if they share at least the TLD
             if sender_domain.split(".")[-1] != reply_domain.split(".")[-1]:
                 reason_codes.append("spoofed_sender")
-                evidence.append(
-                    f"Sender TLD mismatch: {sender_domain} vs {reply_domain}"
-                )
+                evidence.append(f"Sender TLD mismatch: {sender_domain} vs {reply_domain}")
 
         # encoded_payload: check for suspicious encoded content
         b64_matches: list[str] = _BASE64_RE.findall(text)
         if b64_matches:
             for b64_match in b64_matches:
                 try:
-                    decoded = base64.b64decode(b64_match).decode(
-                        "utf-8", errors="strict"
-                    )
+                    decoded = base64.b64decode(b64_match).decode("utf-8", errors="strict")
                     # Check if decoded content contains instruction-like words
                     if any(
                         word in decoded.lower()
@@ -86,8 +84,7 @@ class InjectionScreener:
                     ):
                         reason_codes.append("encoded_payload")
                         evidence.append(
-                            f"Base64 content decodes to text containing "
-                            f"instruction-like words: '{decoded[:50]}...'"
+                            "The input used encoded content to conceal instruction-like text."
                         )
                         break
                 except (UnicodeDecodeError, ValueError):
@@ -96,7 +93,9 @@ class InjectionScreener:
         hex_matches = _HEX_RE.findall(text)
         if hex_matches and "encoded_payload" not in reason_codes:
             reason_codes.append("encoded_payload")
-            evidence.append(f"Long hex string detected: {hex_matches[0][:40]}...")
+            evidence.append(
+                "The input contained a long encoded value that could conceal instructions."
+            )
 
         if not reason_codes:
             return Verdict(

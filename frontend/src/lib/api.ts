@@ -68,6 +68,19 @@ export type Tool = {
   enabled: boolean;
   suggested_for: string[];
 };
+export type ActionProposal = {
+  destination: string;
+  label: string;
+  action_label: string;
+  recommended: boolean;
+  reason: string;
+  executable: boolean;
+  request: {
+    method: "POST";
+    path: "/actions";
+    body: Record<string, unknown>;
+  };
+};
 export async function getEnquiries(query: Record<string, string>) {
   const { data, error, response } = await client.GET("/enquiries", {
     params: { query },
