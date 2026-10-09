@@ -1007,6 +1007,18 @@ small,
   color: var(--primary);
   margin-bottom: 12px;
 }
+.success-note.delivery-success {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  color: #245d3b;
+  background: #e4f2e9;
+  border: 1px solid #c5dfcd;
+  border-radius: 6px;
+  font-weight: 650;
+}
+.success-note.delivery-success svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .blocked-panel {
   padding: 20px;
   background: var(--page);
@@ -1205,6 +1217,18 @@ small,
   font-size: 10px;
   font-weight: 600;
 }
+.saved-credential {
+  display: grid !important;
+  gap: 8px;
+  align-items: stretch !important;
+}
+.saved-credential input {
+  color: var(--muted);
+  letter-spacing: .15em;
+  background: var(--page);
+  user-select: none;
+}
+.saved-credential button { justify-self: start; margin-top: 2px; }
 .disabled-setting {
   opacity: 0.72;
 }

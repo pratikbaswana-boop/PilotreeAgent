@@ -696,6 +696,8 @@ export function SettingsPage() {
   const [linearKey, setLinearKey] = useState("");
   const [linearTeam, setLinearTeam] = useState("");
   const [settingsNotice, setSettingsNotice] = useState("");
+  const [reconfigureSlack, setReconfigureSlack] = useState(false);
+  const [reconfigureLinear, setReconfigureLinear] = useState(false);
   const query = useQuery({
     queryKey: ["admin-tools"],
     queryFn: () =>
@@ -712,10 +714,12 @@ export function SettingsPage() {
   const save = useMutation({
     mutationFn: ({ key, config }: { key: string; config: object }) =>
       request(`/admin/tools/${key}`, "PUT", { enabled: true, config }),
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       setSlackWebhook("");
       setLinearKey("");
-      setSettingsNotice("Destination saved and enabled.");
+      if (variables.key === "slack") setReconfigureSlack(false);
+      if (variables.key === "linear") setReconfigureLinear(false);
+      setSettingsNotice(`${variables.key === "slack" ? "Slack" : "Linear"} is configured and ready to use.`);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin-tools"] }),
         queryClient.invalidateQueries({ queryKey: ["tools"] }),
@@ -759,21 +763,23 @@ export function SettingsPage() {
                     : "Not configured"}
                 </span>
               </div>
-              <label>
-                {configured("slack")?.configured ? "Replace webhook URL (optional)" : "Incoming webhook URL"}
-                <Input
-                  type="password"
-                  value={slackWebhook}
-                  onChange={(event) => setSlackWebhook(event.target.value)}
-                  placeholder={configured("slack")?.configured ? "Leave blank to keep existing" : "https://hooks.slack.com/services/..."}
-                  required={!configured("slack")?.configured}
-                />
-              </label>
+              {configured("slack")?.configured && !reconfigureSlack ? (
+                <div className="saved-credential">
+                  <label>Incoming webhook URL<Input type="text" value="••••••••••••••••••••••••" readOnly aria-label="Saved Slack webhook" /></label>
+                  <p>The saved webhook is hidden and cannot be revealed.</p>
+                  <Button type="button" variant="outline" onClick={() => setReconfigureSlack(true)}>Reconfigure Slack</Button>
+                </div>
+              ) : (
+                <label>
+                  {configured("slack")?.configured ? "New incoming webhook URL" : "Incoming webhook URL"}
+                  <Input type="password" value={slackWebhook} onChange={(event) => setSlackWebhook(event.target.value)} placeholder="https://hooks.slack.com/services/..." required />
+                </label>
+              )}
               <label>
                 Channel label
                 <Input value={slackChannel} onChange={(event) => setSlackChannel(event.target.value)} />
               </label>
-              <Button disabled={save.isPending}>Save Slack</Button>
+              {(!configured("slack")?.configured || reconfigureSlack) && <Button disabled={save.isPending}>Save Slack configuration</Button>}
             </form>
             <form
               className="destination-setting-card"
@@ -793,16 +799,18 @@ export function SettingsPage() {
                     : "Not configured"}
                 </span>
               </div>
-              <label>
-                {configured("linear")?.configured ? "Replace API key (optional)" : "API key"}
-                <Input
-                  type="password"
-                  value={linearKey}
-                  onChange={(event) => setLinearKey(event.target.value)}
-                  placeholder={configured("linear")?.configured ? "Leave blank to keep existing" : "lin_api_..."}
-                  required={!configured("linear")?.configured}
-                />
-              </label>
+              {configured("linear")?.configured && !reconfigureLinear ? (
+                <div className="saved-credential">
+                  <label>API key<Input type="text" value="••••••••••••••••••••••••" readOnly aria-label="Saved Linear API key" /></label>
+                  <p>The saved API key is hidden and cannot be revealed.</p>
+                  <Button type="button" variant="outline" onClick={() => setReconfigureLinear(true)}>Reconfigure Linear</Button>
+                </div>
+              ) : (
+                <label>
+                  {configured("linear")?.configured ? "New API key" : "API key"}
+                  <Input type="password" value={linearKey} onChange={(event) => setLinearKey(event.target.value)} placeholder="lin_api_..." required />
+                </label>
+              )}
               <label>
                 Team ID
                 <Input
@@ -812,7 +820,7 @@ export function SettingsPage() {
                   required={!configured("linear")?.config.team_id}
                 />
               </label>
-              <Button disabled={save.isPending}>Save Linear</Button>
+              {(!configured("linear")?.configured || reconfigureLinear) && <Button disabled={save.isPending}>Save Linear configuration</Button>}
             </form>
           </div>
         </>

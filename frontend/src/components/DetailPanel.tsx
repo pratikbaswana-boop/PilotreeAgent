@@ -165,6 +165,7 @@ export function DetailPanel({
     [destinations, setDestinations] = useState<string[]>([]);
   const [error, setError] = useState(""),
     [notice, setNotice] = useState("");
+  const [awaitingDestination, setAwaitingDestination] = useState<string>();
   const [conflict, setConflict] = useState<{
     remote: Analysis;
     local: Result;
@@ -188,6 +189,26 @@ export function DetailPanel({
       setBaseVersion(analysis.version);
     }
   }, [analysis, dirty, form]);
+  useEffect(() => {
+    if (!awaitingDestination || !actionsQ.data) return;
+    const action = actionsQ.data.find(
+      (item) => item.destination === awaitingDestination,
+    );
+    if (action?.status === "sent") {
+      setNotice(
+        awaitingDestination === "slack"
+          ? "Slack alert sent successfully."
+          : "Linear task created successfully" +
+              (action.external_id ? ` (${action.external_id}).` : "."),
+      );
+      setAwaitingDestination(undefined);
+    } else if (["failed", "unknown"].includes(action?.status ?? "")) {
+      setError(
+        `${label(awaitingDestination)} delivery needs attention. Review the delivery status below.`,
+      );
+      setAwaitingDestination(undefined);
+    }
+  }, [actionsQ.data, awaitingDestination]);
   const refresh = async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["analysis"] }),
@@ -279,6 +300,10 @@ export function DetailPanel({
           typed_reason: reason,
         });
       } else {
+        const destination =
+          current.kind === "resend"
+            ? current.action!.destination
+            : destinations[0];
         await request("/actions", "POST", {
           analysis_id: analysis.id,
           expected_analysis_version: analysis.version,
@@ -290,10 +315,17 @@ export function DetailPanel({
           resend_reason: reason || undefined,
           quarantine_confirmed: decision === "QUARANTINE",
         });
+        setAwaitingDestination(destination);
+        setNotice(
+          destination === "slack"
+            ? "Sending Slack alert…"
+            : "Creating Linear task…",
+        );
       }
       setModal(null);
       await refresh();
-      setNotice("Updated successfully.");
+      if (["approve", "reject", "override_block", "retry"].includes(current.kind))
+        setNotice("Updated successfully.");
     }).catch(() => {});
   }
   if (enquiryQ.isPending)
@@ -404,8 +436,9 @@ export function DetailPanel({
         </div>
       )}
       {notice && (
-        <div role="status" className="success-note">
-          {notice}
+        <div role="status" className={`success-note ${notice.includes("successfully") ? "delivery-success" : ""}`}>
+          {notice.includes("successfully") && <CheckIcon />}
+          <span>{notice}</span>
         </div>
       )}
       {working && (
@@ -677,7 +710,7 @@ export function DetailPanel({
                     </div>
                     {sentAction ? (
                       <div className="proposal-delivered">
-                        <span className="status-badge status-sent"><CheckIcon /> Sent</span>
+                        <span className="status-badge status-sent"><CheckIcon /> Delivered</span>
                         <small>{sentAction.external_id || `Attempt ${sentAction.attempts}`}</small>
                         {canReview && (
                           <Button variant="ghost" size="sm" onClick={() => open({ kind: "resend", action: sentAction })}>Resend</Button>
