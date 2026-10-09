@@ -7,6 +7,7 @@ guard (DECISIONS.md #3).
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +17,10 @@ from app.domain.models import User
 from app.security.auth import get_current_user
 
 router = APIRouter(tags=["auth"])
+
+
+class DemoSessionRequest(BaseModel):
+    access_code: str = ""
 
 
 @router.get("/me")
@@ -30,11 +35,13 @@ async def me(user: User = Depends(get_current_user)) -> dict[str, str]:
 
 @router.post("/auth/local-session")
 async def local_session(
-    request: Request, db: AsyncSession = Depends(get_db_session)
+    request: Request,
+    body: DemoSessionRequest | None = None,
+    db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, str]:
     from app.security.local_auth import LocalJWTVerifier, require_local_request
 
-    require_local_request(request)
+    require_local_request(request, body.access_code if body else "")
     user = await db.scalar(select(User).where(User.oidc_subject == "local-developer"))
     if user is None:
         user = User(

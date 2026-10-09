@@ -323,6 +323,8 @@ export function DetailPanel({
     !pending ||
     !canReview ||
     (decision === "BLOCK" && modal?.kind !== "override_block");
+  const approved = analysis?.status === "approved";
+  const result = (analysis?.result ?? blank) as Result;
   const warnings = [
     "missing_name",
     "invalid_email",
@@ -468,6 +470,63 @@ export function DetailPanel({
                 </Button>
               )}
             </div>
+          ) : approved ? (
+            <section className="analysis-record" aria-label="Approved analysis">
+              <div className="analysis-record-heading">
+                <div>
+                  <span className="eyebrow">Analysis outcome</span>
+                  <h3>Approved decision record</h3>
+                </div>
+                <span className="status-badge status-approved">
+                  <CheckIcon /> Approved
+                </span>
+              </div>
+              <div className="analysis-record-summary">
+                <span>Summary</span>
+                <p>{result.summary}</p>
+              </div>
+              <div className="analysis-record-grid">
+                <div>
+                  <span>Category</span>
+                  <strong>{label(result.category)}</strong>
+                </div>
+                <div>
+                  <span>Priority</span>
+                  <strong className={`priority-value priority-${result.priority}`}>
+                    {label(result.priority)}
+                  </strong>
+                </div>
+              </div>
+              <div className="analysis-record-block">
+                <span>Why this priority</span>
+                <p>{result.priority_reason}</p>
+              </div>
+              <div className="analysis-record-block suggested-action">
+                <span>Suggested next action</span>
+                <p>{result.suggested_action}</p>
+              </div>
+              <div className="analysis-record-lists">
+                <div>
+                  <span>Missing information</span>
+                  <div className="record-chips">
+                    {result.missing_info.length ? result.missing_info.map((item) => (
+                      <span key={item}>{item}</span>
+                    )) : <em>None</em>}
+                  </div>
+                </div>
+                <div>
+                  <span>Risk flags</span>
+                  <div className="record-chips">
+                    {result.risk_flags.length ? result.risk_flags.map((item) => (
+                      <span key={item}>{item}</span>
+                    )) : <em>None</em>}
+                  </div>
+                </div>
+              </div>
+              {result.needs_human_call && (
+                <p className="human-call-flag">Needs a human call</p>
+              )}
+            </section>
           ) : (
             <form
               className={`analysis-form ${decision === "QUARANTINE" ? "unverified" : ""}`}
@@ -592,9 +651,10 @@ export function DetailPanel({
             )}
             <div className="action-proposals">
               {(proposalsQ.data?.proposals ?? []).map((proposal) => {
-                const sent = actionsQ.data?.some(
-                  (a) => a.destination === proposal.destination,
+                const sentAction = actionsQ.data?.find(
+                  (a) => a.destination === proposal.destination && a.status === "sent",
                 );
+                const sent = !!sentAction;
                 const disabled =
                   analysis.status !== "approved" ||
                   !proposal.executable ||
@@ -604,7 +664,7 @@ export function DetailPanel({
                   healthQ.data?.breakers?.[`tool:${proposal.destination}`] ===
                     "open";
                 return (
-                  <div className="action-proposal" key={proposal.destination}>
+                  <div className={`action-proposal ${proposal.recommended ? "recommended" : ""}`} key={proposal.destination}>
                     <div>
                       <strong>{proposal.action_label}</strong>
                       {proposal.recommended && <span>Recommended</span>}
@@ -615,16 +675,26 @@ export function DetailPanel({
                         </p>
                       )}
                     </div>
-                    <Button
-                      variant="outline"
-                      disabled={disabled}
-                      onClick={() => {
-                        open({ kind: "send" });
-                        setDestinations([proposal.destination]);
-                      }}
-                    >
-                      <PaperPlaneIcon /> {proposal.action_label}
-                    </Button>
+                    {sentAction ? (
+                      <div className="proposal-delivered">
+                        <span className="status-badge status-sent"><CheckIcon /> Sent</span>
+                        <small>{sentAction.external_id || `Attempt ${sentAction.attempts}`}</small>
+                        {canReview && (
+                          <Button variant="ghost" size="sm" onClick={() => open({ kind: "resend", action: sentAction })}>Resend</Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        disabled={disabled}
+                        onClick={() => {
+                          open({ kind: "send" });
+                          setDestinations([proposal.destination]);
+                        }}
+                      >
+                        <PaperPlaneIcon /> {proposal.action_label}
+                      </Button>
+                    )}
                   </div>
                 );
               })}
@@ -637,8 +707,10 @@ export function DetailPanel({
             {proposalsQ.isError && (
               <p role="alert">Destinations could not be loaded.</p>
             )}
+            {!!actionsQ.data?.some((action) => action.status !== "sent") && (
             <div className="outbox-list">
-              {actionsQ.data?.map((action) => (
+              <h4>Delivery activity</h4>
+              {actionsQ.data?.filter((action) => action.status !== "sent").map((action) => (
                 <div className="outbox-row" key={action.id}>
                   <strong>{label(action.destination)}</strong>
                   <span className={`status-badge status-${action.status}`}>
@@ -676,6 +748,7 @@ export function DetailPanel({
                 </div>
               ))}
             </div>
+            )}
           </section>
         </>
       )}

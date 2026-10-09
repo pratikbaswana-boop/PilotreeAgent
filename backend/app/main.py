@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers import actions, admin, analyses, auth, enquiries, health, sse
 from app.config import Settings, get_settings
@@ -30,7 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         client_id=settings.oidc_client_id,
         leeway=settings.jwt_clock_skew_seconds,
     )
-    if settings.local_development_auth:
+    if settings.local_development_auth or settings.demo_auth_enabled:
         from app.security.local_auth import LocalJWTVerifier
 
         app.state.jwt_verifier = LocalJWTVerifier(settings.local_development_secret)
@@ -46,6 +47,15 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.add_middleware(CorrelationIdMiddleware)
+    settings = get_settings()
+    if settings.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(enquiries.router)

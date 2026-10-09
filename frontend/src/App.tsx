@@ -52,6 +52,7 @@ import {
   login,
   logout,
   localDevelopmentAuth,
+  demoAuth,
   localLogin,
 } from "@/lib/auth";
 import { useEvents } from "@/lib/events";
@@ -260,6 +261,7 @@ export function AppShell() {
 }
 export function Login() {
   const [error, setError] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   return (
     <main className="login-screen">
       <div className="login-panel">
@@ -274,23 +276,32 @@ export function Login() {
           Sign in to review enquiries, work with AI, and keep every outbound
           action in your hands.
         </p>
-        {!auth && !localDevelopmentAuth && (
+        {!auth && !localDevelopmentAuth && !demoAuth && (
           <p className="error-note">
             Configure VITE_OIDC_AUTHORITY and VITE_OIDC_CLIENT_ID to enable your
             organisation's sign-in.
           </p>
         )}
         {error && <p role="alert">{error}</p>}
+        {demoAuth && (
+          <Input
+            type="password"
+            aria-label="Demo access code"
+            placeholder="Demo access code"
+            value={accessCode}
+            onChange={(event) => setAccessCode(event.target.value)}
+          />
+        )}
         <Button
-          disabled={!auth && !localDevelopmentAuth}
+          disabled={(!auth && !localDevelopmentAuth && !demoAuth) || (demoAuth && !accessCode)}
           onClick={() =>
-            (localDevelopmentAuth ? localLogin() : login())?.catch((e) =>
+            (localDevelopmentAuth || demoAuth ? localLogin(accessCode) : login())?.catch((e) =>
               setError(e.message),
             )
           }
         >
-          {localDevelopmentAuth
-            ? "Enter local workspace"
+          {localDevelopmentAuth || demoAuth
+            ? demoAuth ? "Enter demo workspace" : "Enter local workspace"
             : "Sign in with your organisation"}
         </Button>
         <small>Access is limited to authorised team members.</small>
@@ -742,14 +753,14 @@ export function SettingsPage() {
             >
               <div>
                 <h2>Slack</h2>
-                <span>
+                <span className={`configuration-badge ${configured("slack")?.configured ? "is-configured" : ""}`}>
                   {configured("slack")?.configured
-                    ? "Configured and enabled"
+                    ? "Configured"
                     : "Not configured"}
                 </span>
               </div>
               <label>
-                Incoming webhook URL
+                {configured("slack")?.configured ? "Replace webhook URL (optional)" : "Incoming webhook URL"}
                 <Input
                   type="password"
                   value={slackWebhook}
@@ -776,14 +787,14 @@ export function SettingsPage() {
             >
               <div>
                 <h2>Linear</h2>
-                <span>
+                <span className={`configuration-badge ${configured("linear")?.configured ? "is-configured" : ""}`}>
                   {configured("linear")?.configured
-                    ? "Configured and enabled"
+                    ? "Configured"
                     : "Not configured"}
                 </span>
               </div>
               <label>
-                API key
+                {configured("linear")?.configured ? "Replace API key (optional)" : "API key"}
                 <Input
                   type="password"
                   value={linearKey}

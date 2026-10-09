@@ -6,6 +6,7 @@ exercised now; later milestones use the rest as they are implemented.
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +31,9 @@ class Settings(BaseSettings):
     jwt_clock_skew_seconds: int = 30
     local_development_auth: bool = False
     local_development_secret: str = ""
+    demo_auth_enabled: bool = False
+    demo_access_code: str = ""
+    cors_origins: str = ""
 
     # ── Job queue (M3+) ────────────────────────────────────────────
     worker_concurrency: int = 8
@@ -87,6 +91,15 @@ class Settings(BaseSettings):
 
     # ── Gemini API key ─────────────────────────────────────────────
     gemini_api_key: str = ""
+
+    @field_validator("database_url", "database_session_pool_url", mode="before")
+    @classmethod
+    def async_postgres_url(cls, value: str) -> str:
+        if value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql+asyncpg://", 1)
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return value
 
 
 @lru_cache(maxsize=1)

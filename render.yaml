@@ -1,0 +1,60 @@
+services:
+  - type: web
+    name: pilotree-agent-api
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install ./backend
+    preDeployCommand: cd backend && alembic upgrade head
+    startCommand: cd backend && (python -m app.jobs.worker &) && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pilotree-agent-db
+          property: connectionString
+      - key: DATABASE_SESSION_POOL_URL
+        fromDatabase:
+          name: pilotree-agent-db
+          property: connectionString
+      - key: OIDC_ISSUER
+        value: https://demo.invalid
+      - key: OIDC_CLIENT_ID
+        value: pilotree-demo
+      - key: OIDC_JWKS_URI
+        value: https://demo.invalid/.well-known/jwks.json
+      - key: DEMO_AUTH_ENABLED
+        value: true
+      - key: LOCAL_DEVELOPMENT_SECRET
+        generateValue: true
+      - key: DEMO_ACCESS_CODE
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL_PRIMARY
+        value: gemini-3.5-flash-lite
+      - key: CORS_ORIGINS
+        value: https://pilotree-agent.onrender.com
+
+  - type: web
+    name: pilotree-agent
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://pilotree-agent-api.onrender.com
+      - key: VITE_DEMO_AUTH
+        value: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+databases:
+  - name: pilotree-agent-db
+    plan: free
+    region: singapore
+    databaseName: pilotree
+    user: pilotree
+    ipAllowList: []

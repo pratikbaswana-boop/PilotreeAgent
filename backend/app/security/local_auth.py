@@ -40,8 +40,13 @@ class LocalJWTVerifier:
         )
 
 
-def require_local_request(request: Request) -> None:
-    if not request.app.state.settings.local_development_auth:
+def require_local_request(request: Request, access_code: str = "") -> None:
+    settings = request.app.state.settings
+    if settings.demo_auth_enabled:
+        if not settings.demo_access_code or access_code != settings.demo_access_code:
+            raise HTTPException(401, "Invalid demo access code")
+        return
+    if not settings.local_development_auth:
         raise HTTPException(404, "Local development sign-in is disabled")
     if not request.client or request.client.host not in {"127.0.0.1", "::1"}:
         raise HTTPException(403, "Local sign-in requires a loopback connection")

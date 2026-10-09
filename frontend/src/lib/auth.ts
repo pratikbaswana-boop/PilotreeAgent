@@ -42,8 +42,13 @@ export const localDevelopmentAuth =
   import.meta.env.DEV &&
   import.meta.env.VITE_LOCAL_DEVELOPMENT_AUTH === "true" &&
   ["127.0.0.1", "localhost"].includes(location.hostname);
-export async function localLogin() {
-  const response = await fetch("/api/auth/local-session", { method: "POST" });
+export const demoAuth = import.meta.env.VITE_DEMO_AUTH === "true";
+export async function localLogin(accessCode = "") {
+  const response = await fetch(`${import.meta.env.VITE_API_URL || "/api"}/auth/local-session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_code: accessCode }),
+  });
   if (!response.ok)
     throw new Error(
       "Local sign-in is unavailable. Check the API configuration.",
