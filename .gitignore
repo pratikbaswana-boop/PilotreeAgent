@@ -1,0 +1,44 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+
+# Docker
+pgdata/
+
+# Browser test artifacts
+frontend/test-results/
+frontend/playwright-report/
+*.tsbuildinfo
+
+# Local planning documents (excluded at owner's request)
+[Dd][Ee][Ss][Ii][Gg][Nn].md
+[Dd][Ee][Cc][Ii][Ss][Ii][Oo][Nn].md
+[Dd][Ee][Cc][Ii][Ss][Ii][Oo][Nn][Ss].md
+[Aa][Ii]_[Nn][Oo][Tt][Ee][Ss].md
+[Aa][Ii] [Nn][Oo][Tt][Ee][Ss].md
+new-project/
+
+# Local screenshots and runtime output
+frontend/artifacts/
+*.log
