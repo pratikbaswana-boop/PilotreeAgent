@@ -609,6 +609,11 @@ export function DetailPanel({
                       <strong>{proposal.action_label}</strong>
                       {proposal.recommended && <span>Recommended</span>}
                       <p>{proposal.reason}</p>
+                      {!proposal.executable && proposal.disabled_reason && (
+                        <p className="proposal-disabled-reason">
+                          {proposal.disabled_reason}
+                        </p>
+                      )}
                     </div>
                     <Button
                       variant="outline"

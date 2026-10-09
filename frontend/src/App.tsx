@@ -742,7 +742,11 @@ export function SettingsPage() {
             >
               <div>
                 <h2>Slack</h2>
-                <span>{configured("slack")?.enabled ? "Enabled" : "Not configured"}</span>
+                <span>
+                  {configured("slack")?.configured
+                    ? "Configured and enabled"
+                    : "Not configured"}
+                </span>
               </div>
               <label>
                 Incoming webhook URL
@@ -772,7 +776,11 @@ export function SettingsPage() {
             >
               <div>
                 <h2>Linear</h2>
-                <span>{configured("linear")?.enabled ? "Enabled" : "Not configured"}</span>
+                <span>
+                  {configured("linear")?.configured
+                    ? "Configured and enabled"
+                    : "Not configured"}
+                </span>
               </div>
               <label>
                 API key

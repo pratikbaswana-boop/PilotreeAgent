@@ -893,6 +893,10 @@ small,
   color: var(--muted);
   font-size: 9px;
 }
+.action-proposal .proposal-disabled-reason {
+  color: var(--warning-text);
+  font-weight: 600;
+}
 .destination-chips {
   display: flex;
   gap: 7px;

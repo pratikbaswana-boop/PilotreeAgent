@@ -75,6 +75,7 @@ export type ActionProposal = {
   recommended: boolean;
   reason: string;
   executable: boolean;
+  disabled_reason: string | null;
   request: {
     method: "POST";
     path: "/actions";

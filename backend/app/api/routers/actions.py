@@ -468,6 +468,7 @@ async def get_action_proposals(
         )
     ).all()
     labels = {"slack": "Slack", "linear": "Linear", "sheets": "Google Sheets"}
+    action_labels = {"slack": "Send Slack alert", "linear": "Create Linear task"}
     proposals = []
     for config in configs:
         recommendation = recommendations.get(config.key)
@@ -476,7 +477,9 @@ async def get_action_proposals(
             {
                 "destination": config.key,
                 "label": labels.get(config.key, config.key.replace("_", " ").title()),
-                "action_label": f"Send alert to {labels.get(config.key, config.key.title())}",
+                "action_label": action_labels.get(
+                    config.key, f"Send to {labels.get(config.key, config.key.title())}"
+                ),
                 "recommended": recommended,
                 "reason": (
                     str(recommendation.get("reason", "Recommended by the analysis."))
@@ -488,6 +491,15 @@ async def get_action_proposals(
                 ),
                 "executable": (
                     bool(config.enabled) and not injection_found and analysis.status == "approved"
+                ),
+                "disabled_reason": (
+                    "Tool actions are locked because prompt injection was detected."
+                    if injection_found
+                    else (
+                        "Approve this analysis to enable the action."
+                        if analysis.status != "approved"
+                        else (None if config.enabled else "Destination is disabled.")
+                    )
                 ),
                 "request": {
                     "method": "POST",
