@@ -40,10 +40,14 @@ async def local_session(
         user = User(
             oidc_subject="local-developer",
             email="developer@localhost",
-            display_name="Local Reviewer",
-            role=UserRole.reviewer,
+            display_name="Local Administrator",
+            role=UserRole.admin,
         )
         db.add(user)
+        await db.flush()
+    elif user.role != UserRole.admin or user.display_name != "Local Administrator":
+        user.role = UserRole.admin
+        user.display_name = "Local Administrator"
         await db.flush()
     verifier = request.app.state.jwt_verifier
     if not isinstance(verifier, LocalJWTVerifier):

@@ -29,7 +29,7 @@ class LocalJWTVerifier:
             {
                 "sub": "local-developer",
                 "email": "developer@localhost",
-                "name": "Local Reviewer",
+                "name": "Local Administrator",
                 "iss": ISSUER,
                 "aud": AUDIENCE,
                 "iat": now,

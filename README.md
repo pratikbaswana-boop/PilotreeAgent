@@ -88,6 +88,6 @@ npm run generate:api
 
 ### Optional local development sign-in
 
-For localhost testing without an organisation identity provider, set `LOCAL_DEVELOPMENT_AUTH=true` and a randomly generated `LOCAL_DEVELOPMENT_SECRET` (at least 32 characters) in `backend/.env`, plus `VITE_LOCAL_DEVELOPMENT_AUTH=true` in `frontend/.env`. Bind both servers to loopback. The login screen then offers **Enter local workspace**, issuing an eight-hour signed reviewer session. The endpoint rejects non-loopback callers and unapproved origins; the frontend option is disabled in production builds. The default remains OIDC.
+For localhost testing without an organisation identity provider, set `LOCAL_DEVELOPMENT_AUTH=true` and a randomly generated `LOCAL_DEVELOPMENT_SECRET` (at least 32 characters) in `backend/.env`, plus `VITE_LOCAL_DEVELOPMENT_AUTH=true` in `frontend/.env`. Bind both servers to loopback. The login screen then offers **Enter local workspace**, issuing an eight-hour signed administrator session. The endpoint rejects non-loopback callers and unapproved origins; the frontend option is disabled in production builds. The default remains OIDC.
 
 Use **New enquiry** to paste a message, then **Analyse with AI**. The configured Gemini model must be available to your API key; `gemini-3.5-flash-lite` was verified with a real structured call in this local setup. Availability and free-tier quotas are controlled by Google.

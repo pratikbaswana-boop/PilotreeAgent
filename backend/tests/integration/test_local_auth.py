@@ -29,7 +29,7 @@ async def test_local_login_verifies_session_and_rejects_other_origins(app_client
         token = response.json()["access_token"]
         me = await app_client.get("/me", headers={"Authorization": "Bearer " + token})
         assert me.status_code == 200
-        assert me.json()["role"] == "reviewer"
+        assert me.json()["role"] == "admin"
         invalid = await app_client.get("/me", headers={"Authorization": "Bearer invalid-token"})
         assert invalid.status_code == 401
     finally:
