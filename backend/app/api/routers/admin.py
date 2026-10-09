@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -115,23 +116,46 @@ async def update_tool_config(
 
     Body: {enabled?: bool, config?: dict, credential?: str}
     """
-    config = await db.get(ToolConfig, key)
-    if config is None:
-        # Create new config
-        config = ToolConfig(
-            key=key,
-            enabled=body.get("enabled", True),
-            config=body.get("config", {}),
+    schemas: dict[str, Any] = {}
+    from app.tools.linear import LinearConfig
+    from app.tools.slack import SlackConfig
+
+    schemas.update(slack=SlackConfig, linear=LinearConfig)
+    if key == "sheets":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Google Sheets setup is unavailable until service-account "
+                "authentication is enabled."
+            ),
         )
+    if key not in schemas:
+        raise HTTPException(status_code=404, detail="Unknown destination.")
+
+    config = await db.get(ToolConfig, key)
+    incoming = body.get("config") or {}
+    current = dict(config.config or {}) if config else {}
+    secret_fields = {"slack": {"webhook_url"}, "linear": {"api_key"}}[key]
+    merged = {
+        **current,
+        **{
+            field: value
+            for field, value in incoming.items()
+            if value != "" or field not in secret_fields
+        },
+    }
+    enabled = bool(body.get("enabled", config.enabled if config else True))
+    if enabled:
+        try:
+            schemas[key].model_validate(merged)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors()) from exc
+    if config is None:
+        config = ToolConfig(key=key, enabled=enabled, config=merged)
         db.add(config)
     else:
-        if "enabled" in body:
-            config.enabled = body["enabled"]
-        if "config" in body:
-            config.config = body["config"]
-        if "credential" in body:
-            # Credential would be encrypted in production (ADR-11)
-            config.credential_ref = body["credential"]
+        config.enabled = enabled
+        config.config = merged
 
     config.updated_at = datetime.now(UTC)
     await db.flush()
@@ -141,10 +165,13 @@ async def update_tool_config(
 
 def _tool_config_to_dict(tc: ToolConfig) -> dict[str, Any]:
     """Convert a ToolConfig to a dict with secrets redacted."""
+    secret_fields = {"webhook_url", "api_key", "token", "secret"}
+    safe_config = {
+        key: value for key, value in (tc.config or {}).items() if key not in secret_fields
+    }
     return {
         "key": tc.key,
         "enabled": tc.enabled,
-        "config": tc.config,
-        "credential_ref": tc.credential_ref,
-        # encrypted_credential is never exposed
+        "configured": bool(tc.config),
+        "config": safe_config,
     }

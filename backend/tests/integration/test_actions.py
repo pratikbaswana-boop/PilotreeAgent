@@ -464,3 +464,39 @@ async def test_admin_update_tool_reviewer_forbidden(
         headers=reviewer_headers,
     )
     assert response.status_code == 403
+
+
+async def test_admin_configures_slack_and_never_returns_webhook(
+    app_client: httpx.AsyncClient,
+    admin_headers: dict[str, str],
+) -> None:
+    webhook = "https://hooks.slack.com/services/test/secret/value"
+    saved = await app_client.put(
+        "/admin/tools/slack",
+        json={
+            "enabled": True,
+            "config": {"webhook_url": webhook, "channel": "#operations"},
+        },
+        headers=admin_headers,
+    )
+    assert saved.status_code == 200
+    assert saved.json() == {
+        "key": "slack",
+        "enabled": True,
+        "configured": True,
+        "config": {"channel": "#operations"},
+    }
+    listed = await app_client.get("/admin/tools", headers=admin_headers)
+    assert webhook not in listed.text
+
+
+async def test_admin_rejects_sheets_until_authenticated_writer_exists(
+    app_client: httpx.AsyncClient,
+    admin_headers: dict[str, str],
+) -> None:
+    response = await app_client.put(
+        "/admin/tools/sheets",
+        json={"enabled": True, "config": {"api_key": "not-enough"}},
+        headers=admin_headers,
+    )
+    assert response.status_code == 409

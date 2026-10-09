@@ -1106,6 +1106,45 @@ small,
   max-width: 500px;
   margin: 20px 0;
 }
+.destination-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+.utility-page .destination-setting-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  max-width: none;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.destination-setting-card > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.destination-setting-card h2 {
+  font-size: 15px;
+}
+.destination-setting-card span,
+.destination-setting-card p {
+  color: var(--muted);
+  font-size: 10px;
+}
+.destination-setting-card label {
+  display: grid;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.disabled-setting {
+  opacity: 0.72;
+}
 .session-screen {
   min-height: 100dvh;
   display: flex;

@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Link,
   Outlet,
@@ -679,11 +679,46 @@ export function OutboxPage() {
 }
 export function SettingsPage() {
   const user = useUser();
+  const queryClient = useQueryClient();
+  const [slackWebhook, setSlackWebhook] = useState("");
+  const [slackChannel, setSlackChannel] = useState("#triage");
+  const [linearKey, setLinearKey] = useState("");
+  const [linearTeam, setLinearTeam] = useState("");
+  const [settingsNotice, setSettingsNotice] = useState("");
   const query = useQuery({
-    queryKey: ["tools"],
+    queryKey: ["admin-tools"],
     queryFn: () =>
-      request<Array<{ key: string; enabled: boolean }>>("/tools/metadata"),
+      request<
+        Array<{
+          key: string;
+          enabled: boolean;
+          configured: boolean;
+          config: Record<string, string>;
+        }>
+      >("/admin/tools"),
+    enabled: user.role === "admin",
   });
+  const save = useMutation({
+    mutationFn: ({ key, config }: { key: string; config: object }) =>
+      request(`/admin/tools/${key}`, "PUT", { enabled: true, config }),
+    onSuccess: async () => {
+      setSlackWebhook("");
+      setLinearKey("");
+      setSettingsNotice("Destination saved and enabled.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-tools"] }),
+        queryClient.invalidateQueries({ queryKey: ["tools"] }),
+        queryClient.invalidateQueries({ queryKey: ["action-proposals"] }),
+      ]);
+    },
+  });
+  const configured = (key: string) => query.data?.find((item) => item.key === key);
+  useEffect(() => {
+    const slack = query.data?.find((item) => item.key === "slack");
+    const linear = query.data?.find((item) => item.key === "linear");
+    if (slack?.config.channel) setSlackChannel(slack.config.channel);
+    if (linear?.config.team_id) setLinearTeam(linear.config.team_id);
+  }, [query.data]);
   return (
     <main className="utility-page">
       <h1>Destination settings</h1>
@@ -691,16 +726,80 @@ export function SettingsPage() {
         <p>Administrator access required.</p>
       ) : (
         <>
-          <p>
-            Destinations are managed through the administrator API. Credentials
-            are never shown in this workspace.
-          </p>
-          {query.data?.map((tool) => (
-            <div className="outbox-row" key={tool.key}>
-              <strong>{label(tool.key)}</strong>
-              <span>{tool.enabled ? "Enabled" : "Disabled"}</span>
-            </div>
-          ))}
+          <p>Configure where approved enquiries can be sent. Credentials are write-only.</p>
+          {settingsNotice && <p role="status">{settingsNotice}</p>}
+          {save.isError && <p role="alert">{save.error.message}</p>}
+          <div className="destination-settings-grid">
+            <form
+              className="destination-setting-card"
+              onSubmit={(event) => {
+                event.preventDefault();
+                save.mutate({
+                  key: "slack",
+                  config: { webhook_url: slackWebhook, channel: slackChannel },
+                });
+              }}
+            >
+              <div>
+                <h2>Slack</h2>
+                <span>{configured("slack")?.enabled ? "Enabled" : "Not configured"}</span>
+              </div>
+              <label>
+                Incoming webhook URL
+                <Input
+                  type="password"
+                  value={slackWebhook}
+                  onChange={(event) => setSlackWebhook(event.target.value)}
+                  placeholder={configured("slack")?.configured ? "Leave blank to keep existing" : "https://hooks.slack.com/services/..."}
+                  required={!configured("slack")?.configured}
+                />
+              </label>
+              <label>
+                Channel label
+                <Input value={slackChannel} onChange={(event) => setSlackChannel(event.target.value)} />
+              </label>
+              <Button disabled={save.isPending}>Save Slack</Button>
+            </form>
+            <form
+              className="destination-setting-card"
+              onSubmit={(event) => {
+                event.preventDefault();
+                save.mutate({
+                  key: "linear",
+                  config: { api_key: linearKey, team_id: linearTeam },
+                });
+              }}
+            >
+              <div>
+                <h2>Linear</h2>
+                <span>{configured("linear")?.enabled ? "Enabled" : "Not configured"}</span>
+              </div>
+              <label>
+                API key
+                <Input
+                  type="password"
+                  value={linearKey}
+                  onChange={(event) => setLinearKey(event.target.value)}
+                  placeholder={configured("linear")?.configured ? "Leave blank to keep existing" : "lin_api_..."}
+                  required={!configured("linear")?.configured}
+                />
+              </label>
+              <label>
+                Team ID
+                <Input
+                  value={linearTeam}
+                  onChange={(event) => setLinearTeam(event.target.value)}
+                  placeholder={configured("linear")?.config.team_id || "Team UUID"}
+                  required={!configured("linear")?.config.team_id}
+                />
+              </label>
+              <Button disabled={save.isPending}>Save Linear</Button>
+            </form>
+            <section className="destination-setting-card disabled-setting">
+              <div><h2>Google Sheets</h2><span>Unavailable</span></div>
+              <p>Service-account authentication must be added before private-sheet writes can be enabled.</p>
+            </section>
+          </div>
         </>
       )}
     </main>
