@@ -59,7 +59,9 @@ class AnalysisHandler:
         if enquiry is None:
             raise ValueError("Analysis enquiry is missing")
         tool_configs = (
-            await db.scalars(select(ToolConfig).where(ToolConfig.enabled.is_(True)))
+            await db.scalars(
+                select(ToolConfig).where(ToolConfig.enabled.is_(True), ToolConfig.key != "sheets")
+            )
         ).all()
         tool_capabilities = {
             "slack": {

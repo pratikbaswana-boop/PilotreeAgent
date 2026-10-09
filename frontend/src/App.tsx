@@ -795,10 +795,6 @@ export function SettingsPage() {
               </label>
               <Button disabled={save.isPending}>Save Linear</Button>
             </form>
-            <section className="destination-setting-card disabled-setting">
-              <div><h2>Google Sheets</h2><span>Unavailable</span></div>
-              <p>Service-account authentication must be added before private-sheet writes can be enabled.</p>
-            </section>
           </div>
         </>
       )}

@@ -156,6 +156,11 @@ async def create_actions(
     actions_created: list[dict[str, Any]] = []
 
     for destination in destinations:
+        if destination == "sheets":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Google Sheets is disabled.",
+            )
         # Check if destination is enabled
         tool_config: ToolConfig | None = tool_configs.get(destination)
         if tool_config is None or not tool_config.enabled:
@@ -384,7 +389,7 @@ async def get_tools_metadata(
     _user: User = Depends(_viewer),
 ) -> list[dict[str, Any]]:
     """GET /tools/metadata — tool UI metadata for destination chips."""
-    result = await db.execute(select(ToolConfig))
+    result = await db.execute(select(ToolConfig).where(ToolConfig.key != "sheets"))
     configs = result.scalars().all()
 
     # Built-in tool metadata
@@ -457,7 +462,11 @@ async def get_action_proposals(
         for item in result.get("recommended_tools", [])
         if isinstance(item, dict)
     }
-    configs = (await db.scalars(select(ToolConfig).order_by(ToolConfig.key))).all()
+    configs = (
+        await db.scalars(
+            select(ToolConfig).where(ToolConfig.key != "sheets").order_by(ToolConfig.key)
+        )
+    ).all()
     labels = {"slack": "Slack", "linear": "Linear", "sheets": "Google Sheets"}
     proposals = []
     for config in configs:
